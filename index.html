@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sell vs Rent My House Calculator</title>
-  <meta name="description" content="Compare SELL vs RENT (w/o REFI) vs RENT (w/ REFI) for net worth + income potential over 30 years." />
+  <meta name="description" content="Compare SELL vs RENT (w/o REFI) vs RENT (w/ REFI) for net worth and income over 30 years." />
 
   <!-- Google Analytics (reused from your template) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R1KF7GYGF"></script>
@@ -119,8 +119,8 @@
           <div class="callout">
             <div class="calloutTitle">Note on P&amp;I</div>
             <div class="calloutBody">
-              We compute your monthly principal &amp; interest from your balance, rate, and loan end date.
-              If you want, you can override the monthly P&amp;I for cash flow in Optional Assumptions.
+              We compute monthly principal &amp; interest from balance, rate, and loan end date.
+              If you want, you can override monthly P&amp;I for cash flow in Optional Assumptions.
             </div>
           </div>
 
@@ -207,8 +207,9 @@
               </label>
 
               <label>
-                Income rate (SELL withdrawal %, annual)
+                Income rate (withdrawal %, annual)
                 <input id="withdrawalRate" type="number" min="0" step="0.1" value="4.0" />
+                <small class="hint">Used for Portfolio Income (rule-of-thumb).</small>
               </label>
 
               <label>
@@ -253,19 +254,14 @@
       <!-- RIGHT COLUMN -->
       <div class="col">
 
-        <!-- Results (clean) -->
-        <section class="card">
+        <!-- Results (hidden until run) -->
+        <section class="card hidden" id="cardResults">
           <h2>Results</h2>
 
           <div class="pillRow">
             <div class="pill">
               <div class="pillLabel">Net Worth Winner (Year 30)</div>
               <div class="pillValue" id="netWorthWinner">—</div>
-            </div>
-
-            <div class="pill">
-              <div class="pillLabel">Portfolio Income Winner (Year 30)</div>
-              <div class="pillValue" id="incomeWinner">—</div>
             </div>
           </div>
 
@@ -274,16 +270,19 @@
           </div>
         </section>
 
-        <!-- Results Summary card (new) -->
-        <section class="card">
+        <!-- Results Summary card (hidden until run) -->
+        <section class="card hidden" id="cardSummary">
           <h2>Results Summary</h2>
+
           <ul class="bullets" id="resultsSummary">
             <li>—</li>
           </ul>
+
+          <div class="noteBox" id="resultsNotes"></div>
         </section>
 
-        <!-- Table card -->
-        <section class="card">
+        <!-- Table card (hidden until run) -->
+        <section class="card hidden" id="cardTable">
           <h2>Net worth + income snapshots</h2>
           <div class="tableWrap">
             <table class="table" id="summaryTable">
@@ -293,9 +292,11 @@
                   <th>SELL: Net Worth</th>
                   <th>RENT (w/o REFI): Net Worth</th>
                   <th>RENT (w/ REFI): Net Worth</th>
-                  <th>SELL: Income</th>
-                  <th>RENT (w/o REFI): Income</th>
-                  <th>RENT (w/ REFI): Income</th>
+                  <th>SELL: Portfolio Income</th>
+                  <th>RENT (w/o REFI): Cash Flow</th>
+                  <th>RENT (w/o REFI): Portfolio Income</th>
+                  <th>RENT (w/ REFI): Cash Flow</th>
+                  <th>RENT (w/ REFI): Portfolio Income</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -305,10 +306,8 @@
           <div class="hintBlock" id="assumptionNote"></div>
         </section>
 
-        <!-- Kit form (reused from your template) -->
+        <!-- Kit form card (only the form, no text) -->
         <section class="card">
-          <h2>Get more calculators + prompts</h2>
-          <p class="muted">Join the newsletter for practical personal finance in the AI era.</p>
           <div class="kitWrap">
             <script async data-uid="eeff810649" src="https://debtfreedoors.kit.com/eeff810649/index.js"></script>
           </div>
@@ -320,7 +319,7 @@
 
   <footer class="wrap footer">
     <div class="footerInner">
-      <div class="muted">© <span id="yearNow"></span> · Sell vs Rent My House Calculator · Built for GitHub Pages</div>
+      <div class="muted">© <span id="yearNow"></span> · Sell vs Rent My House Calculator</div>
       <div class="muted">Not financial/tax advice. For education only.</div>
     </div>
   </footer>
