@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sell vs Rent My House Calculator</title>
+  <meta name="description" content="Model the net worth impact of selling your house vs renting it (with or without a refinance) over 50 years." />
+
+  <!-- Google Analytics (reused from your template) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R1KF7GYGF"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-3R1KF7GYGF');
+  </script>
+
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <header class="wrap header">
+    <div class="brand">
+      <div class="brandText">
+        <div class="title">Sell vs Rent My House Calculator</div>
+        <div class="subtitle">
+          Made by
+          <a class="link" href="https://AIMadeMeWealthy.com" target="_blank" rel="noopener">AIMadeMeWealthy.com</a>
+          · Net worth includes home equity (when renting) + investments − out-of-pocket
+        </div>
+      </div>
+
+      <div class="topCta">
+        <a class="ctaLink" href="https://AIMadeMeWealthy.com" target="_blank" rel="noopener">
+          Visit AIMadeMeWealthy.com →
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap main">
+    <div class="grid">
+      <!-- LEFT COLUMN -->
+      <div class="col">
+
+        <!-- Required inputs -->
+        <section class="card">
+          <h2>Required inputs</h2>
+
+          <div class="grid2">
+            <label>
+              Home value (sale price today)
+              <input id="homeValue" type="number" min="0" step="1000" placeholder="450000" />
+            </label>
+
+            <label>
+              Remaining loan balance
+              <input id="loanBalance" type="number" min="0" step="1000" placeholder="310000" />
+            </label>
+
+            <label>
+              Estimated monthly rent
+              <input id="monthlyRent" type="number" min="0" step="50" placeholder="3000" />
+            </label>
+
+            <label>
+              Years lived in the home
+              <input id="yearsLived" type="number" min="0" step="0.5" placeholder="3" />
+              <small class="hint">Used for a simplified tax assumption on the sale scenario.</small>
+            </label>
+          </div>
+
+          <hr class="sep" />
+
+          <h3 class="subhead">Current mortgage (for amortization)</h3>
+          <div class="grid2">
+            <label>
+              Current interest rate (APR %)
+              <input id="currRate" type="number" min="0" step="0.01" placeholder="6.5" />
+            </label>
+
+            <label>
+              Years remaining on current loan
+              <input id="currYearsRemaining" type="number" min="0" step="1" placeholder="27" />
+            </label>
+
+            <label>
+              Monthly property taxes (T)
+              <input id="taxesMonthly" type="number" min="0" step="10" placeholder="450" />
+            </label>
+
+            <label>
+              Monthly insurance (Ins)
+              <input id="insMonthly" type="number" min="0" step="10" placeholder="150" />
+            </label>
+          </div>
+
+          <div class="callout">
+            <div class="calloutTitle">Note on P&amp;I</div>
+            <div class="calloutBody">
+              We compute your monthly principal &amp; interest from your balance, rate, and years remaining.
+              You can override the computed P&amp;I in Optional Assumptions if you want.
+            </div>
+          </div>
+
+          <hr class="sep" />
+
+          <h3 class="subhead">Refinance (Scenario 3)</h3>
+          <div class="grid2">
+            <label>
+              Refi interest rate (APR %)
+              <input id="refiRate" type="number" min="0" step="0.01" placeholder="5.75" />
+            </label>
+
+            <label>
+              Cash-in principal paydown at refi
+              <input id="refiCashIn" type="number" min="0" step="500" placeholder="20000" />
+              <small class="hint">We assume this same cash exists in all scenarios at Year 0 so starting net worth is equal.</small>
+            </label>
+          </div>
+        </section>
+
+        <!-- Optional assumptions -->
+        <section class="card">
+          <button class="accordion" id="toggleOptional" aria-expanded="false">
+            <span>Optional assumptions</span>
+            <span class="chev">▾</span>
+          </button>
+
+          <div class="accordionBody" id="optionalBody">
+            <div class="grid2">
+              <label>
+                Sale closing costs (% of sale price)
+                <input id="saleClosingPct" type="number" min="0" step="0.1" value="6" />
+              </label>
+
+              <label>
+                Market return (annual %, nominal)
+                <input id="marketReturn" type="number" min="0" step="0.1" value="7.0" />
+              </label>
+
+              <label>
+                Home appreciation (annual %, nominal)
+                <input id="homeAppreciation" type="number" min="0" step="0.1" value="3.0" />
+              </label>
+
+              <label>
+                Inflation / rent growth (annual %, nominal)
+                <input id="inflation" type="number" min="0" step="0.1" value="3.0" />
+              </label>
+
+              <label>
+                Vacancy (% of rent)
+                <input id="vacancyPct" type="number" min="0" step="0.1" value="5.0" />
+              </label>
+
+              <label>
+                Repairs &amp; maintenance (% of rent)
+                <input id="maintPct" type="number" min="0" step="0.1" value="5.0" />
+              </label>
+
+              <label>
+                CapEx (% of rent)
+                <input id="capexPct" type="number" min="0" step="0.1" value="5.0" />
+              </label>
+
+              <label>
+                Property management (% of rent)
+                <input id="pmPct" type="number" min="0" step="0.1" value="0.0" />
+                <small class="hint">Often 8–10% if you use a property manager.</small>
+              </label>
+
+              <label>
+                Tax on positive rental cash flow (%)
+                <input id="rentalTaxRate" type="number" min="0" step="0.1" value="0.0" />
+              </label>
+
+              <label>
+                Refi term (years)
+                <input id="refiTermYears" type="number" min="1" step="1" value="30" />
+              </label>
+
+              <label>
+                Refi closing costs (% of new loan)
+                <input id="refiClosingPct" type="number" min="0" step="0.1" value="2.0" />
+              </label>
+
+              <label>
+                Income rate (Sell scenario withdrawal %, annual)
+                <input id="withdrawalRate" type="number" min="0" step="0.1" value="4.0" />
+              </label>
+
+              <label>
+                If lived &lt; 2 years: cap gains tax rate (%)
+                <input id="capGainsRate" type="number" min="0" step="0.1" value="15.0" />
+              </label>
+
+              <label>
+                Optional: estimated cost basis (only used if lived &lt; 2 years)
+                <input id="costBasis" type="number" min="0" step="1000" placeholder="(leave blank = assume no gain)" />
+                <small class="hint">If blank, we assume cost basis = sale price ⇒ no capital gain (simple assumption).</small>
+              </label>
+            </div>
+
+            <hr class="sep" />
+
+            <div class="row">
+              <label class="check">
+                <input id="overridePI" type="checkbox" />
+                <span>Override current monthly P&amp;I for cash flow</span>
+              </label>
+            </div>
+
+            <div class="grid2" id="overridePIInputs" style="display:none;">
+              <label>
+                Override monthly P&amp;I amount
+                <input id="overridePIAmount" type="number" min="0" step="10" placeholder="1800" />
+                <small class="hint">This affects monthly cash flow only. Loan payoff still uses amortization from balance/rate/term.</small>
+              </label>
+              <div></div>
+            </div>
+
+            <div class="callout subtle">
+              <div class="calloutTitle">Tax simplification</div>
+              <div class="calloutBody">
+                If you’ve lived in the home for 2+ years, we assume 0% capital gains tax on sale.
+                If under 2 years, we apply the cap gains rate to (sale price − cost basis) if provided.
+                This is a simplified rule-of-thumb, not tax advice.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="row">
+          <button class="btn primary" id="btnRun">Run calculation</button>
+          <button class="btn" id="btnReset">Reset</button>
+          <button class="btn" id="btnCsv">Download CSV</button>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="col">
+
+        <section class="card">
+          <h2>Results</h2>
+
+          <div class="pillRow">
+            <div class="pill" id="pillLongTerm">
+              <div class="pillLabel">50-year winner</div>
+              <div class="pillValue" id="longTermWinner">—</div>
+            </div>
+
+            <div class="pill" id="pillNote">
+              <div class="pillLabel">Important</div>
+              <div class="pillValue">Year 0 starts equal</div>
+            </div>
+          </div>
+
+          <div class="miniGrid" id="winnersGrid"></div>
+
+          <div class="chartWrap">
+            <canvas id="nwChart" height="120"></canvas>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Net worth + income snapshots</h2>
+          <div class="tableWrap">
+            <table class="table" id="summaryTable">
+              <thead>
+                <tr>
+                  <th>Year</th>
+                  <th>Sell: Net Worth</th>
+                  <th>Rent: Net Worth</th>
+                  <th>Rent+Refi: Net Worth</th>
+                  <th>Sell: Income</th>
+                  <th>Rent: Income</th>
+                  <th>Rent+Refi: Income</th>
+                  <th>Winner</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="hintBlock" id="assumptionNote"></div>
+        </section>
+
+        <!-- Kit form (reused from your template) -->
+        <section class="card">
+          <h2>Get more calculators + prompts</h2>
+          <p class="muted">
+            Join the newsletter for practical personal finance in the AI era.
+          </p>
+          <div class="kitWrap">
+            <script async data-uid="eeff810649" src="https://debtfreedoors.kit.com/eeff810649/index.js"></script>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <footer class="wrap footer">
+    <div class="footerInner">
+      <div class="muted">
+        © <span id="yearNow"></span> · Sell vs Rent My House Calculator · Built for GitHub Pages
+      </div>
+      <div class="muted">
+        Not financial/tax advice. For education only.
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
