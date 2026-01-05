@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sell vs Rent My House Calculator</title>
-  <meta name="description" content="Compare SELL vs RENT (w/o REFI) vs RENT (w/ REFI) for net worth and income over 30 years." />
+  <meta name="description" content="Compare SELL vs RENT (w/o REFI) vs RENT (w/ REFI) for net worth and income potential over 30 years." />
 
   <!-- Google Analytics (reused from your template) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R1KF7GYGF"></script>
@@ -77,17 +77,9 @@
             </label>
 
             <label>
-              Month/year moved out (or check “I still live here”)
+              Month/year moved out (or planned future move out date)
               <input id="movedOut" type="month" />
-              <small class="hint">If you still live here, we use today’s date.</small>
             </label>
-
-            <label class="check inline">
-              <input id="stillLiveHere" type="checkbox" />
-              <span>I still live here</span>
-            </label>
-
-            <div class="hintBlock" id="yearsLivedPreview">Years lived: —</div>
           </div>
 
           <hr class="sep" />
@@ -207,9 +199,9 @@
               </label>
 
               <label>
-                Income rate (withdrawal %, annual)
+                Non-Rental Income rate (withdrawal %, annual)
                 <input id="withdrawalRate" type="number" min="0" step="0.1" value="4.0" />
-                <small class="hint">Used for Portfolio Income (rule-of-thumb).</small>
+                <small class="hint">Used for Non-Rental Income (rule-of-thumb).</small>
               </label>
 
               <label>
@@ -266,7 +258,7 @@
           </div>
 
           <div class="chartWrap">
-            <canvas id="nwChart" height="120"></canvas>
+            <canvas id="nwChart"></canvas>
           </div>
         </section>
 
@@ -284,19 +276,23 @@
         <!-- Table card (hidden until run) -->
         <section class="card hidden" id="cardTable">
           <h2>Net worth + income snapshots</h2>
+
           <div class="tableWrap">
             <table class="table" id="summaryTable">
               <thead>
                 <tr>
-                  <th>Year</th>
-                  <th>SELL: Net Worth</th>
-                  <th>RENT (w/o REFI): Net Worth</th>
-                  <th>RENT (w/ REFI): Net Worth</th>
-                  <th>SELL: Portfolio Income</th>
-                  <th>RENT (w/o REFI): Cash Flow</th>
-                  <th>RENT (w/o REFI): Portfolio Income</th>
-                  <th>RENT (w/ REFI): Cash Flow</th>
-                  <th>RENT (w/ REFI): Portfolio Income</th>
+                  <th rowspan="2">Year</th>
+                  <th colspan="2" class="groupHead">SELL</th>
+                  <th colspan="2" class="groupHead">RENT (w/o REFI)</th>
+                  <th colspan="2" class="groupHead">RENT (w/ REFI)</th>
+                </tr>
+                <tr>
+                  <th>Net Worth</th>
+                  <th>Income Potential</th>
+                  <th>Net Worth</th>
+                  <th>Income Potential</th>
+                  <th>Net Worth</th>
+                  <th>Income Potential</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -306,7 +302,7 @@
           <div class="hintBlock" id="assumptionNote"></div>
         </section>
 
-        <!-- Kit form card (only the form, no text) -->
+        <!-- Kit form card (only the form) -->
         <section class="card">
           <div class="kitWrap">
             <script async data-uid="eeff810649" src="https://debtfreedoors.kit.com/eeff810649/index.js"></script>

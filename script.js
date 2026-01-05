@@ -17,13 +17,16 @@ function money(n) {
   if (!Number.isFinite(x)) return "—";
   return x.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
+
+// Nearest $1K for “K” formatting in summary bullets
 function moneyK(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return "—";
-  const rounded = Math.round(x / 1000); // nearest $1K
+  const rounded = Math.round(x / 1000);
   const sign = rounded < 0 ? "-" : "";
   return `${sign}$${Math.abs(rounded)}K`;
 }
+
 function roundTo1K(n) { return Math.round(Number(n) / 1000) * 1000; }
 
 function mortgagePayment(principal, annualRateDecimal, termMonths) {
@@ -77,7 +80,6 @@ function parseInputs() {
 
     movedIn: parseMonthInput($("movedIn").value),
     movedOut: parseMonthInput($("movedOut").value),
-    stillLiveHere: $("stillLiveHere").checked,
 
     currRate: clampNumber($("currRate").value),
     loanEnd: parseMonthInput($("loanEnd").value),
@@ -115,13 +117,13 @@ function parseInputs() {
 }
 
 function computeDerived(required) {
-  const movedIn = required.movedIn;
-  const endForResidence = required.stillLiveHere ? getTodayMonthStart() : required.movedOut;
-  const yearsLived = (movedIn && endForResidence) ? yearsBetween(movedIn, endForResidence) : null;
+  const yearsLived =
+    (required.movedIn && required.movedOut)
+      ? yearsBetween(required.movedIn, required.movedOut)
+      : null;
 
-  const loanEnd = required.loanEnd;
   const today = getTodayMonthStart();
-  const monthsRemaining = (loanEnd) ? monthsBetween(today, loanEnd) : null;
+  const monthsRemaining = (required.loanEnd) ? monthsBetween(today, required.loanEnd) : null;
   const yearsRemaining = (monthsRemaining == null) ? null : Math.max(0, monthsRemaining / 12);
 
   return { yearsLived, monthsRemaining, yearsRemaining };
@@ -139,8 +141,9 @@ function validateInputs(inputs) {
   if (required.monthlyRent < 0) errors.push("Estimated monthly rent must be ≥ 0");
 
   if (!required.movedIn) errors.push("Month/year moved in is required");
-  if (!required.stillLiveHere && !required.movedOut) errors.push("Month/year moved out is required (or check “I still live here”)");
-  if (derived.yearsLived == null) errors.push("Could not compute years lived from dates");
+  if (!required.movedOut) errors.push("Month/year moved out is required (can be a future planned date)");
+  if (derived.yearsLived == null) errors.push("Could not compute years lived from moved in/out dates");
+  if (derived.yearsLived < 0) errors.push("Moved out date must be after moved in date");
 
   reqPos("Current interest rate", required.currRate);
   if (!required.loanEnd) errors.push("Month/year loan ends is required");
@@ -212,9 +215,9 @@ function runSimulation(inputs, derived) {
       kind,
       homeValue: required.homeValue,
       loanBal: required.loanBalance,
-      invest: startingCash,
-      oop: 0,
-      yearCashFlow: Array(YEARS + 1).fill(0) // annual rental cash flow (after tax)
+      invest: startingCash,    // liquid investment account (market)
+      oop: 0,                  // tracks out-of-pocket drag (negative CF)
+      yearRentalIncome: Array(YEARS + 1).fill(0) // annual net rental cash flow (after rental tax)
     };
   }
 
@@ -229,19 +232,21 @@ function runSimulation(inputs, derived) {
     rentKeepNW: Array(YEARS + 1).fill(0),
     rentRefiNW: Array(YEARS + 1).fill(0),
 
-    // Cash Flow Income (rental net cash flow; SELL has 0)
-    sellCashIncome: Array(YEARS + 1).fill(0),
-    rentKeepCashIncome: Array(YEARS + 1).fill(0),
-    rentRefiCashIncome: Array(YEARS + 1).fill(0),
+    // Income split
+    sellNonRentalIncome: Array(YEARS + 1).fill(0),
+    sellRentalIncome: Array(YEARS + 1).fill(0),
+    sellIncomePotential: Array(YEARS + 1).fill(0),
 
-    // Portfolio Income (withdrawal from invest + cash flow if any)
-    sellPortfolioIncome: Array(YEARS + 1).fill(0),
-    rentKeepPortfolioIncome: Array(YEARS + 1).fill(0),
-    rentRefiPortfolioIncome: Array(YEARS + 1).fill(0),
+    rentKeepNonRentalIncome: Array(YEARS + 1).fill(0),
+    rentKeepRentalIncome: Array(YEARS + 1).fill(0),
+    rentKeepIncomePotential: Array(YEARS + 1).fill(0),
 
-    // For summary
-    rentKeepYear1AnnualCF: 0,
-    rentRefiYear1AnnualCF: 0,
+    rentRefiNonRentalIncome: Array(YEARS + 1).fill(0),
+    rentRefiRentalIncome: Array(YEARS + 1).fill(0),
+    rentRefiIncomePotential: Array(YEARS + 1).fill(0),
+
+    rentKeepYear1AnnualRentalIncome: 0,
+    rentRefiYear1AnnualRentalIncome: 0,
   };
 
   // Year 0 equal
@@ -293,9 +298,10 @@ function runSimulation(inputs, derived) {
   let taxes = required.taxesMonthly;
   let ins = required.insMonthly;
 
-  // For refi payback calc: simple breakeven on closing costs using Year-1 monthly cash flow delta
-  // (cash-in is not treated as a "cost" for breakeven because it’s a balance-sheet shift)
-  const refiUpfrontCosts = rentRefi.loanBal * refiClose;
+  // Refi breakeven: include BOTH (cash-in + closing costs)
+  // (Your requested definition: treat cash-in as part of the “upfront cost”.)
+  const refiClosingFees = rentRefi.loanBal * refiClose;
+  const refiUpfrontCost = Math.max(0, required.refiCashIn) + refiClosingFees;
 
   // Run monthly
   for (let m = 1; m <= MONTHS; m++) {
@@ -330,7 +336,7 @@ function runSimulation(inputs, derived) {
       else rentKeep.oop += net;
 
       const year = Math.ceil(m / 12);
-      rentKeep.yearCashFlow[year] += net;
+      rentKeep.yearRentalIncome[year] += net;
     }
 
     // RENT (w/ REFI)
@@ -353,7 +359,7 @@ function runSimulation(inputs, derived) {
       else rentRefi.oop += net;
 
       const year = Math.ceil(m / 12);
-      rentRefi.yearCashFlow[year] += net;
+      rentRefi.yearRentalIncome[year] += net;
     }
 
     // Year-end snapshots
@@ -366,28 +372,35 @@ function runSimulation(inputs, derived) {
       series.rentKeepNW[y] = (rentKeep.homeValue - rentKeep.loanBal) + rentKeep.invest + rentKeep.oop;
       series.rentRefiNW[y] = (rentRefi.homeValue - rentRefi.loanBal) + rentRefi.invest + rentRefi.oop;
 
-      // Cash flow income
-      series.sellCashIncome[y] = 0;
-      series.rentKeepCashIncome[y] = rentKeep.yearCashFlow[y];
-      series.rentRefiCashIncome[y] = rentRefi.yearCashFlow[y];
+      // Income components
+      // Non-Rental Income = withdrawal from liquid investment account
+      series.sellNonRentalIncome[y] = sell.invest * wd;
+      series.rentKeepNonRentalIncome[y] = rentKeep.invest * wd;
+      series.rentRefiNonRentalIncome[y] = rentRefi.invest * wd;
 
-      // Portfolio income (withdrawal from liquid invest + cash flow)
-      series.sellPortfolioIncome[y] = sell.invest * wd;
-      series.rentKeepPortfolioIncome[y] = (rentKeep.invest * wd) + rentKeep.yearCashFlow[y];
-      series.rentRefiPortfolioIncome[y] = (rentRefi.invest * wd) + rentRefi.yearCashFlow[y];
+      // Rental Income = net rental cash flow (after rental tax)
+      series.sellRentalIncome[y] = 0;
+      series.rentKeepRentalIncome[y] = rentKeep.yearRentalIncome[y];
+      series.rentRefiRentalIncome[y] = rentRefi.yearRentalIncome[y];
+
+      // Income Potential = Non-Rental + Rental
+      series.sellIncomePotential[y] = series.sellNonRentalIncome[y] + series.sellRentalIncome[y];
+      series.rentKeepIncomePotential[y] = series.rentKeepNonRentalIncome[y] + series.rentKeepRentalIncome[y];
+      series.rentRefiIncomePotential[y] = series.rentRefiNonRentalIncome[y] + series.rentRefiRentalIncome[y];
 
       if (y === 1) {
-        series.rentKeepYear1AnnualCF = rentKeep.yearCashFlow[1];
-        series.rentRefiYear1AnnualCF = rentRefi.yearCashFlow[1];
+        series.rentKeepYear1AnnualRentalIncome = rentKeep.yearRentalIncome[1];
+        series.rentRefiYear1AnnualRentalIncome = rentRefi.yearRentalIncome[1];
       }
     }
   }
 
-  // Simple refi breakeven using Year 1 monthly cash flow delta vs closing costs
-  const year1Delta = series.rentRefiCashIncome[1] - series.rentKeepCashIncome[1];
+  // Refi breakeven: (upfront cost) / (year-1 monthly rental income improvement)
+  // If refi doesn't improve year-1 rental income, mark as N/A.
+  const year1Delta = series.rentRefiRentalIncome[1] - series.rentKeepRentalIncome[1];
   const monthlyDelta = year1Delta / 12;
   let breakevenMonths = null;
-  if (monthlyDelta > 0) breakevenMonths = refiUpfrontCosts / monthlyDelta;
+  if (monthlyDelta > 0) breakevenMonths = refiUpfrontCost / monthlyDelta;
 
   const taxLine = (derived.yearsLived ?? 0) >= 2
     ? "Sale tax: assumed 0% capital gains tax because time in home ≥ 2 years (simplified rule)."
@@ -405,7 +418,8 @@ function runSimulation(inputs, derived) {
       currPIForCashFlow,
       refiPI,
       sellTransactionHit,
-      refiUpfrontCosts,
+      refiClosingFees,
+      refiUpfrontCost,
       breakevenMonths,
       taxLine
     }
@@ -432,10 +446,10 @@ function pickWinnerAtYear(series, y, which) {
       { key: "rentKeep", v: series.rentKeepNW[y] },
       { key: "rentRefi", v: series.rentRefiNW[y] },
     ],
-    portfolioIncome: [
-      { key: "sell", v: series.sellPortfolioIncome[y] },
-      { key: "rentKeep", v: series.rentKeepPortfolioIncome[y] },
-      { key: "rentRefi", v: series.rentRefiPortfolioIncome[y] },
+    incomePotential: [
+      { key: "sell", v: series.sellIncomePotential[y] },
+      { key: "rentKeep", v: series.rentKeepIncomePotential[y] },
+      { key: "rentRefi", v: series.rentRefiIncomePotential[y] },
     ]
   };
 
@@ -485,23 +499,45 @@ function renderChart(series) {
   });
 }
 
+function formatIncomePotential(total, nonRental, rental) {
+  // all rounded to nearest $1K, as requested
+  const t = roundTo1K(total);
+  const nr = roundTo1K(nonRental);
+  const r = roundTo1K(rental);
+  return `${moneyK(t)} (${moneyK(nr)} Non-Rental, ${moneyK(r)} Rental)`;
+}
+
 function renderTable(series) {
   const years = [0, 1, 5, 10, 30];
   const tbody = $("summaryTable").querySelector("tbody");
   tbody.innerHTML = "";
 
   years.forEach((y) => {
+    const sellIncome = formatIncomePotential(
+      series.sellIncomePotential[y],
+      series.sellNonRentalIncome[y],
+      series.sellRentalIncome[y]
+    );
+    const keepIncome = formatIncomePotential(
+      series.rentKeepIncomePotential[y],
+      series.rentKeepNonRentalIncome[y],
+      series.rentKeepRentalIncome[y]
+    );
+    const refiIncome = formatIncomePotential(
+      series.rentRefiIncomePotential[y],
+      series.rentRefiNonRentalIncome[y],
+      series.rentRefiRentalIncome[y]
+    );
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${y}</td>
       <td>${money(series.sellNW[y])}</td>
+      <td>${sellIncome}</td>
       <td>${money(series.rentKeepNW[y])}</td>
+      <td>${keepIncome}</td>
       <td>${money(series.rentRefiNW[y])}</td>
-      <td>${money(series.sellPortfolioIncome[y])}</td>
-      <td>${money(series.rentKeepCashIncome[y])}</td>
-      <td>${money(series.rentKeepPortfolioIncome[y])}</td>
-      <td>${money(series.rentRefiCashIncome[y])}</td>
-      <td>${money(series.rentRefiPortfolioIncome[y])}</td>
+      <td>${refiIncome}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -511,7 +547,7 @@ function renderResultsSummary(series, meta) {
   const y = YEARS;
 
   const nw = pickWinnerAtYear(series, y, "nw");
-  const inc = pickWinnerAtYear(series, y, "portfolioIncome");
+  const inc = pickWinnerAtYear(series, y, "incomePotential");
 
   const nwTop = labelScenario(nw.top.key);
   const nwBottom = labelScenario(nw.bottom.key);
@@ -519,10 +555,32 @@ function renderResultsSummary(series, meta) {
   const incTop = labelScenario(inc.top.key);
   const incBottom = labelScenario(inc.bottom.key);
 
+  // Year-30 income split for the income winner
+  const incomeMap = {
+    sell: {
+      total: series.sellIncomePotential[y],
+      nonRental: series.sellNonRentalIncome[y],
+      rental: series.sellRentalIncome[y],
+    },
+    rentKeep: {
+      total: series.rentKeepIncomePotential[y],
+      nonRental: series.rentKeepNonRentalIncome[y],
+      rental: series.rentKeepRentalIncome[y],
+    },
+    rentRefi: {
+      total: series.rentRefiIncomePotential[y],
+      nonRental: series.rentRefiNonRentalIncome[y],
+      rental: series.rentRefiRentalIncome[y],
+    }
+  };
+
+  const winKey = inc.top.key;
+  const winIncome = incomeMap[winKey];
+
   const sellHit = meta.sellTransactionHit;
 
-  const rentNoRefiYear1Annual = roundTo1K(series.rentKeepYear1AnnualCF);
-  const rentWithRefiYear1Annual = roundTo1K(series.rentRefiYear1AnnualCF);
+  const rentNoRefiYear1Annual = roundTo1K(series.rentKeepYear1AnnualRentalIncome);
+  const rentWithRefiYear1Annual = roundTo1K(series.rentRefiYear1AnnualRentalIncome);
 
   const rentNoRefiMonthly = roundTo1K(rentNoRefiYear1Annual / 12);
   const rentWithRefiMonthly = roundTo1K(rentWithRefiYear1Annual / 12);
@@ -537,35 +595,41 @@ function renderResultsSummary(series, meta) {
   };
 
   li(`Net Worth: ${nwTop} results in your highest net worth in ${y} years, while ${nwBottom} resulted in your lowest net worth.`);
-  li(`Portfolio Income: ${incTop} results in your highest income potential in ${y} years, while ${incBottom} resulted in your lowest income potential.`);
-  li(`SELL: Your net worth takes a ~${moneyK(sellHit)} hit due to total transaction costs.`);
-  li(`RENT (w/o REFI): Renting your home (without refinancing) results in an estimated net income of ${moneyK(rentNoRefiMonthly)} per month (${moneyK(rentNoRefiYear1Annual)} per year) in year 1.`);
-  li(`RENT (w/ REFI): Renting your home (with refinancing) results in an estimated net income of ${moneyK(rentWithRefiMonthly)} per month (${moneyK(rentWithRefiYear1Annual)} per year) in year 1.`);
 
-  // Explanatory notes + breakeven
+  li(
+    `Income Potential: ${incTop} results in your highest income potential in ${y} years of ~${moneyK(winIncome.total)}/yr ` +
+    `(~${moneyK(winIncome.nonRental)} Non-Rental, ~${moneyK(winIncome.rental)} Rental), while ${incBottom} resulted in your lowest income potential.`
+  );
+
+  li(`SELL: Your net worth takes a ~${moneyK(sellHit)} hit due to total transaction costs.`);
+  li(`RENT (w/o REFI): Renting your home (without refinancing) results in an estimated net rental income of ${moneyK(rentNoRefiMonthly)} per month (${moneyK(rentNoRefiYear1Annual)} per year) in year 1.`);
+  li(`RENT (w/ REFI): Renting your home (with refinancing) results in an estimated net rental income of ${moneyK(rentWithRefiMonthly)} per month (${moneyK(rentWithRefiYear1Annual)} per year) in year 1.`);
+
+  // Additional details + breakeven
   const notes = $("resultsNotes");
 
-  let breakevenText = "Refi breakeven: not applicable (refi does not improve year-1 cash flow).";
+  let breakevenText = "Refi breakeven: not applicable (refi does not improve year-1 net rental income).";
   if (meta.breakevenMonths != null && Number.isFinite(meta.breakevenMonths)) {
     const months = meta.breakevenMonths;
-    if (months <= 0) breakevenText = "Refi breakeven: immediate (year-1 cash flow improvement is already positive).";
-    else if (months > 600) breakevenText = "Refi breakeven: 50+ years (closing costs likely never paid back via cash flow).";
-    else breakevenText = `Refi breakeven: ~${months.toFixed(0)} months (~${(months/12).toFixed(1)} years), based on year-1 monthly cash flow improvement vs refi closing costs.`;
+    if (months <= 0) breakevenText = "Refi breakeven: immediate (year-1 net rental income improvement is already positive).";
+    else if (months > 600) breakevenText = "Refi breakeven: 50+ years (upfront costs likely never paid back via improved rental cash flow).";
+    else breakevenText = `Refi breakeven: ~${months.toFixed(0)} months (~${(months/12).toFixed(1)} years), based on year-1 monthly net rental income improvement vs upfront refi costs (cash-in + closing fees).`;
   }
 
   notes.innerHTML = `
-    <div class="noteTitle">Why results can feel surprising</div>
+    <div class="noteTitle">Additional details</div>
     <div class="noteBody">
-      <strong>Cash Flow Income</strong> is the rental property’s annual net cash flow (rent minus vacancy/repairs/capex/PM/PITI).<br/>
-      <strong>Portfolio Income</strong> is a rule-of-thumb withdrawal (default ${$("withdrawalRate").value || "4.0"}%) from the liquid investment account,
-      plus rental cash flow if applicable. A refi can lower monthly payments but still reduce long-term results due to (a) closing costs, (b) reset amortization, and (c) locking cash into home equity instead of letting it compound in the market.
+      <strong>Rental Income</strong> is the property’s annual net rental cash flow (rent minus vacancy/repairs/capex/PM/PITI), after the optional rental tax rate.<br/>
+      <strong>Non-Rental Income</strong> is a rule-of-thumb withdrawal (default ${$("withdrawalRate").value || "4.0"}%) from the liquid investment account.<br/>
+      <strong>Income Potential</strong> = Rental Income + Non-Rental Income.<br/>
+      A refi can lower monthly payments but still reduce long-term results due to (a) upfront costs (cash-in + closing fees), (b) reset amortization, and (c) locking cash into equity instead of letting it compound in the market.
       <div class="noteLine">${breakevenText}</div>
     </div>
   `;
 }
 
 function renderAssumptionNote(meta, inputs) {
-  const { required, optional } = inputs;
+  const { optional } = inputs;
   const note = $("assumptionNote");
 
   const piLine = (optional.overridePIAmount != null)
@@ -579,7 +643,8 @@ function renderAssumptionNote(meta, inputs) {
       Rental costs: Vacancy ${optional.vacancyPct.toFixed(1)}%, Maint ${optional.maintPct.toFixed(1)}%, CapEx ${optional.capexPct.toFixed(1)}%, PM ${optional.pmPct.toFixed(1)}% · Rental tax rate: ${optional.rentalTaxRate.toFixed(1)}%<br/>
       ${meta.taxLine}<br/>
       ${piLine}<br/>
-      Refi P&amp;I (computed): ${money(meta.refiPI)} · Refi closing costs: ${optional.refiClosingPct.toFixed(1)}% of new loan<br/>
+      Refi P&amp;I (computed): ${money(meta.refiPI)} · Refi closing fees: ${optional.refiClosingPct.toFixed(1)}% of new loan<br/>
+      Refi upfront costs (for breakeven): cash-in + closing fees = ${money(meta.refiUpfrontCost)}<br/>
       Starting net worth is equal at Year 0 (we assume the refi cash-in amount exists in all scenarios at Year 0).
     </div>
   `;
@@ -589,13 +654,17 @@ function buildCsv(series) {
   const header = [
     "Year",
     "SELL_NetWorth",
+    "SELL_IncomePotential",
+    "SELL_NonRentalIncome",
+    "SELL_RentalIncome",
     "RENT_wo_REFI_NetWorth",
+    "RENT_wo_REFI_IncomePotential",
+    "RENT_wo_REFI_NonRentalIncome",
+    "RENT_wo_REFI_RentalIncome",
     "RENT_w_REFI_NetWorth",
-    "SELL_PortfolioIncome",
-    "RENT_wo_REFI_CashFlow",
-    "RENT_wo_REFI_PortfolioIncome",
-    "RENT_w_REFI_CashFlow",
-    "RENT_w_REFI_PortfolioIncome",
+    "RENT_w_REFI_IncomePotential",
+    "RENT_w_REFI_NonRentalIncome",
+    "RENT_w_REFI_RentalIncome",
   ];
   const rows = [header.join(",")];
 
@@ -603,13 +672,17 @@ function buildCsv(series) {
     rows.push([
       y,
       series.sellNW[y],
+      series.sellIncomePotential[y],
+      series.sellNonRentalIncome[y],
+      series.sellRentalIncome[y],
       series.rentKeepNW[y],
+      series.rentKeepIncomePotential[y],
+      series.rentKeepNonRentalIncome[y],
+      series.rentKeepRentalIncome[y],
       series.rentRefiNW[y],
-      series.sellPortfolioIncome[y],
-      series.rentKeepCashIncome[y],
-      series.rentKeepPortfolioIncome[y],
-      series.rentRefiCashIncome[y],
-      series.rentRefiPortfolioIncome[y],
+      series.rentRefiIncomePotential[y],
+      series.rentRefiNonRentalIncome[y],
+      series.rentRefiRentalIncome[y],
     ].join(","));
   }
   return rows.join("\n");
@@ -632,24 +705,6 @@ function setResultsVisible(visible) {
   $("cardResults").classList.toggle("hidden", !visible);
   $("cardSummary").classList.toggle("hidden", !visible);
   $("cardTable").classList.toggle("hidden", !visible);
-}
-
-function updateYearsPreview() {
-  const inputs = parseInputs();
-  const { derived } = validateInputs(inputs);
-
-  const preview = $("yearsLivedPreview");
-  if (!inputs.required.movedIn) {
-    preview.textContent = "Years lived: —";
-    return;
-  }
-  const end = inputs.required.stillLiveHere ? getTodayMonthStart() : inputs.required.movedOut;
-  if (!end) {
-    preview.textContent = "Years lived: —";
-    return;
-  }
-  const y = yearsBetween(inputs.required.movedIn, end);
-  preview.textContent = `Years lived: ${y.toFixed(2)}`;
 }
 
 function wireOptionalAccordion() {
@@ -678,19 +733,17 @@ function run() {
   const result = runSimulation(inputs, derived);
   lastResult = { inputs, derived, result };
 
-  // Reveal result cards
   setResultsVisible(true);
 
-  // Net Worth Winner pill (Year 30)
+  // Net Worth Winner pill (Year 30) — label only (no $ value)
   const nwWinner = pickWinnerAtYear(result.series, YEARS, "nw");
-  $("netWorthWinner").textContent = `${labelScenario(nwWinner.top.key)} (${money(nwWinner.top.v)})`;
+  $("netWorthWinner").textContent = labelScenario(nwWinner.top.key);
 
   renderChart(result.series);
   renderResultsSummary(result.series, result.meta);
   renderTable(result.series);
   renderAssumptionNote(result.meta, inputs);
 
-  // Scroll a bit on run (helps on mobile)
   $("cardResults").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -701,9 +754,7 @@ function resetAll() {
     "taxesMonthly","insMonthly","refiRate","refiCashIn"
   ].forEach(id => { $(id).value = ""; });
 
-  $("stillLiveHere").checked = false;
   $("overridePIAmount").value = "";
-  $("yearsLivedPreview").textContent = "Years lived: —";
 
   $("netWorthWinner").textContent = "—";
   $("resultsSummary").innerHTML = "<li>—</li>";
@@ -715,7 +766,6 @@ function resetAll() {
   chart = null;
   lastResult = null;
 
-  // Hide cards again
   setResultsVisible(false);
 }
 
@@ -725,15 +775,6 @@ function init() {
   wireOptionalAccordion();
   setResultsVisible(false);
 
-  $("stillLiveHere").addEventListener("change", (e) => {
-    $("movedOut").disabled = e.target.checked;
-    if (e.target.checked) $("movedOut").value = "";
-    updateYearsPreview();
-  });
-
-  $("movedIn").addEventListener("change", updateYearsPreview);
-  $("movedOut").addEventListener("change", updateYearsPreview);
-
   $("btnRun").addEventListener("click", run);
   $("btnReset").addEventListener("click", resetAll);
   $("btnCsv").addEventListener("click", () => {
@@ -741,8 +782,6 @@ function init() {
     const csv = buildCsv(lastResult.result.series);
     downloadText("sell-vs-rent-my-house-30y.csv", csv);
   });
-
-  updateYearsPreview();
 }
 
 document.addEventListener("DOMContentLoaded", init);
