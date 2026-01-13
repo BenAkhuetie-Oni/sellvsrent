@@ -6,7 +6,7 @@
   <title>Sell vs Rent My House Calculator</title>
   <meta name="description" content="Compare SELL vs RENT for net worth over 30 years. Not financial/tax advice." />
 
-  <!-- Google Analytics -->
+  <!-- Google Analytics (reused from your template) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R1KF7GYGF"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -112,20 +112,27 @@
             <div class="calloutTitle">Note on P&amp;I</div>
             <div class="calloutBody">
               We compute monthly principal &amp; interest from balance, rate, and loan end date.
-              If you want, you can override monthly P&amp;I for cash flow in Optional assumptions.
+              If you want, you can override monthly P&amp;I for cash flow in Optional Assumptions.
             </div>
           </div>
 
-          <div class="hint" style="margin-top:10px;">
-            We assume the same starting cash exists in all scenarios at Year 0 so starting net worth is equal.
+          <hr class="sep" />
+
+          <div class="grid2">
+            <label>
+            </label>
+
+            <label>
+              <small class="hint">We assume this same cash exists in all scenarios at Year 0 so starting net worth is equal.</small>
+            </label>
           </div>
         </section>
 
         <!-- Optional assumptions -->
         <section class="card">
-          <button class="accordion" id="toggleOptional" aria-expanded="false" type="button">
+          <button class="accordion" id="toggleOptional" aria-expanded="false">
             <span>Optional assumptions</span>
-            <span class="chev" id="chevOptional">▾</span>
+            <span class="chev">▾</span>
           </button>
 
           <div class="accordionBody" id="optionalBody">
@@ -176,7 +183,17 @@
                 <input id="rentalTaxRate" type="number" min="0" step="0.1" value="0.0" />
               </label>
 
-              <label></label>
+              <label>
+              </label>
+
+              <label>
+              </label>
+
+              <label>
+                Non-Rental Income rate (withdrawal %, annual)
+                <input id="withdrawalRate" type="number" min="0" step="0.1" value="4.0" />
+                <small class="hint">Used for Non-Rental Income (rule-of-thumb).</small>
+              </label>
 
               <label>
                 If lived &lt; 2 years: cap gains tax rate (%)
@@ -210,9 +227,9 @@
         </section>
 
         <div class="row">
-          <button class="btn primary" id="btnRun" type="button">Run calculation</button>
-          <button class="btn" id="btnReset" type="button">Reset</button>
-          <button class="btn" id="btnCsv" type="button">Download CSV</button>
+          <button class="btn primary" id="btnRun">Run calculation</button>
+          <button class="btn" id="btnReset">Reset</button>
+          <button class="btn" id="btnCsv">Download CSV</button>
         </div>
 
       </div>
@@ -244,7 +261,7 @@
             <li>—</li>
           </ul>
 
-          <div class="noteBox" id="resultsNotesSummary"></div>
+          <div class="noteBox" id="resultsNotes"></div>
         </section>
 
         <!-- Table card (hidden until run) -->
@@ -264,7 +281,14 @@
             </table>
           </div>
 
-          <div class="noteBox" id="resultsNotesTable"></div>
+          <div class="noteBox" id="resultsNotes"></div>
+        </section>
+
+        <!-- Kit form card (only the form) -->
+        <section class="card">
+          <div class="kitWrap">
+            <script async data-uid="eeff810649" src="https://outdoorfinancialfreedom.kit.com/eeff810649/index.js"></script>
+          </div>
         </section>
 
       </div>

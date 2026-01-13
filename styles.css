@@ -254,9 +254,6 @@ input:focus{
   margin-top: 12px;
   display: none;
 }
-.accordionBody.open{
-  display: block;
-}
 
 /* Pills */
 .pillRow{
@@ -393,6 +390,20 @@ input:focus{
 .muted{ color: var(--muted); }
 
 
+/* Accordion default (closed) */
+.accordionBody{
+  margin-top: 12px;
+  display: none;
+}
+.accordion[aria-expanded="true"] + .accordionBody{
+  margin-top: 12px;
+  display: none;
+}
+
 /* Note box lists */
 .noteBox ul{ margin: 8px 0 0 18px; }
 .noteBox li{ margin: 4px 0; }
+
+.accordionBody.open{
+  display: block;
+}
