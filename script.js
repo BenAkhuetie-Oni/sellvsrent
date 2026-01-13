@@ -1,5 +1,10 @@
 "use strict";
 
+// App version (for cache/debug)
+const APP_VERSION = "2026-01-13-nonegstocks-v3";
+console.log("Sell vs Rent script loaded:", APP_VERSION);
+
+
 // -----------------------------
 // Utilities
 // -----------------------------
@@ -183,6 +188,10 @@ function runSimulation(inputs, derived) {
     sell.invest *= (1 + marketM);
     rent.invest *= (1 + marketM);
 
+    // Safety: portfolios cannot go below $0 in this simplified consumer model
+    if (sell.invest < 0) sell.invest = 0;
+    if (rent.invest < 0) rent.invest = 0;
+
     // RENT: home appreciation
     rent.homeValue *= (1 + homeAppM);
 
@@ -212,9 +221,11 @@ function runSimulation(inputs, derived) {
 
     if (net >= 0) {
       rent.invest += net;
+      if (rent.invest < 0) rent.invest = 0;
     } else {
       const avoided = Math.abs(net);
       sell.invest += avoided;
+      if (sell.invest < 0) sell.invest = 0;
       sell.avoidedNegCF += avoided;
     }
 
@@ -263,7 +274,7 @@ function renderSummary(series) {
     `<li>SELL includes <strong>${moneyAbbrev(series.avoidedNegCF[30])}</strong> in <em>Avoided Negative Cash Flow</em> invested into stocks over time (see note below).</li>`
   ];
 
-  el.innerHTML = `<ul>${bullets.join("")}</ul>`;
+  el.innerHTML = bullets.join("");
 }
 
 function renderTable(series) {
