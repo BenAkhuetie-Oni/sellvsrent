@@ -1,10 +1,5 @@
 "use strict";
 
-// App version (for cache/debug)
-const APP_VERSION = "2026-01-13-nonegstocks-v3";
-console.log("Sell vs Rent script loaded:", APP_VERSION);
-
-
 // -----------------------------
 // Utilities
 // -----------------------------
@@ -44,7 +39,7 @@ function moneyAbbrev(n) {
 }
 function moneyBreakdown(total, stocks, equity) {
   // total displayed as K/M. stocks/equity rounded to nearest $1K
-  return `${moneyAbbrev(total)} (${moneyAbbrev(stocks)} stocks, ${moneyAbbrev(equity)} home equity)`;
+  return `<strong>${moneyAbbrev(total)}</strong> (${moneyAbbrev(stocks)} stocks, ${moneyAbbrev(equity)} home equity)`;
 }
 
 function mortgagePayment(principal, annualRateDec, nMonths) {
@@ -167,12 +162,15 @@ function runSimulation(inputs, derived) {
     rentEquity: Array(YEARS + 1).fill(0),
     rentNW: Array(YEARS + 1).fill(0),
     avoidedNegCF: Array(YEARS + 1).fill(0),
+    rentNetAtYearStart: Array(YEARS + 1).fill(0),
     meta: {
       currPIComputed: piComputed,
     }
   };
 
-  // Year 0 snapshot
+    let rentNetCFTotal = 0;
+
+// Year 0 snapshot
   series.sellStocks[0] = sell.invest;
   series.sellEquity[0] = 0;
   series.sellNW[0] = sell.invest;
@@ -187,10 +185,6 @@ function runSimulation(inputs, derived) {
     // Grow investments monthly
     sell.invest *= (1 + marketM);
     rent.invest *= (1 + marketM);
-
-    // Safety: portfolios cannot go below $0 in this simplified consumer model
-    if (sell.invest < 0) sell.invest = 0;
-    if (rent.invest < 0) rent.invest = 0;
 
     // RENT: home appreciation
     rent.homeValue *= (1 + homeAppM);
@@ -219,13 +213,18 @@ function runSimulation(inputs, derived) {
     // Apply rental tax to positive net only (simplified)
     if (net > 0 && rentalTax > 0) net *= (1 - rentalTax);
 
+    // Track rental cash flow (for summary)
+    rentNetCFTotal += net;
+    if (m % 12 === 0) {
+      const yStart = m / 12;
+      series.rentNetAtYearStart[yStart] = net;
+    }
+
     if (net >= 0) {
       rent.invest += net;
-      if (rent.invest < 0) rent.invest = 0;
     } else {
       const avoided = Math.abs(net);
       sell.invest += avoided;
-      if (sell.invest < 0) sell.invest = 0;
       sell.avoidedNegCF += avoided;
     }
 
@@ -245,7 +244,9 @@ function runSimulation(inputs, derived) {
     }
   }
 
-  return series;
+    series.meta.rentNetCFTotal = rentNetCFTotal;
+
+return series;
 }
 
 // -----------------------------
@@ -262,19 +263,44 @@ function renderWinner(series) {
 
 function renderSummary(series) {
   const el = $("resultsSummary");
+
   const sell30 = series.sellNW[30];
   const rent30 = series.rentNW[30];
 
-  const delta = sell30 - rent30;
-  const sign = delta >= 0 ? "+" : "−";
-  const abs = Math.abs(delta);
+  const sellLabel = "SELL";
+  const rentLabel = "RENT";
 
-  const bullets = [
-    `<li>Year 30 net worth: <strong>SELL ${moneyAbbrev(sell30)}</strong> vs <strong>RENT ${moneyAbbrev(rent30)}</strong> (${sign}${moneyAbbrev(abs)} difference).</li>`,
-    `<li>SELL includes <strong>${moneyAbbrev(series.avoidedNegCF[30])}</strong> in <em>Avoided Negative Cash Flow</em> invested into stocks over time (see note below).</li>`
-  ];
+  const winner = sell30 >= rent30 ? sellLabel : rentLabel;
+  const loser = sell30 >= rent30 ? rentLabel : sellLabel;
+  const winnerVal = sell30 >= rent30 ? sell30 : rent30;
+  const loserVal = sell30 >= rent30 ? rent30 : sell30;
+  const diff = Math.abs(winnerVal - loserVal);
 
-  el.innerHTML = bullets.join("");
+  // Rental cash flow summary
+  const netY0 = series.rentNetAtYearStart[0] ?? 0;
+  const netTotal = Number(series.meta.rentNetCFTotal ?? 0);
+
+  let breakEvenText = "";
+  if (netY0 < 0) {
+    let breakEvenYear = null;
+    for (let y = 0; y <= 30; y++) {
+      if ((series.rentNetAtYearStart[y] ?? 0) >= 0) { breakEvenYear = y; break; }
+    }
+    breakEvenText = breakEvenYear == null
+      ? "does not break even by Year 30"
+      : `until breaking even at Year ${breakEvenYear}`;
+  }
+
+  const netY0PerMonth = moneyAbbrev(netY0);
+  const netTotalText = moneyAbbrev(netTotal);
+
+  const nwBullet = `Net Worth (Year 30): ${winner} (${moneyAbbrev(winnerVal)}) results in a higher net worth vs. ${loser} (${moneyAbbrev(loserVal)}) (+${moneyAbbrev(diff)} difference).`;
+
+  const cashFlowBullet = (netY0 < 0)
+    ? `Rental Cash Flow: RENT results in negative cash flow (${netY0PerMonth}/month at Y0) ${breakEvenText}. (Net Rental Cash Flow, Y0–Y30: ${netTotalText}). Negative cash flow is accounted for in SELL scenario as “Avoided Negative Cash Flow” that is invested in stocks. Positive cash flow is accounted for in RENT scenario as additional cash invested in stocks.`
+    : `Rental Cash Flow: RENT results in positive cash flow (${netY0PerMonth}/month at Y0; Net Rental Cash Flow, Y0–Y30: ${netTotalText}). RENT assumes positive cash flow is invested in stocks.`;
+
+  el.innerHTML = `<li>${nwBullet}</li><li>${cashFlowBullet}</li>`;
 }
 
 function renderTable(series) {
@@ -305,21 +331,30 @@ function renderTable(series) {
 }
 
 function renderNotes(inputs, derived, series) {
-  const { required, optional } = inputs;
+  const { optional } = inputs;
   const note = $("resultsNotes");
 
   const piText = (optional.overridePIAmount != null)
     ? `Current P&I: overridden at ${money0(optional.overridePIAmount)} (computed payment ${money0(series.meta.currPIComputed)}).`
     : `Current P&I: computed as ${money0(series.meta.currPIComputed)} from balance/rate/loan-end date.`;
 
+  const items = [
+    `Market return: ${optional.marketReturn.toFixed(1)}%`,
+    `Home appreciation: ${optional.homeAppreciation.toFixed(1)}%`,
+    `Inflation/rent growth: ${optional.inflation.toFixed(1)}%`,
+    `Rental costs: Vacancy ${optional.vacancyPct.toFixed(1)}%, Maint ${optional.maintPct.toFixed(1)}%, CapEx ${optional.capexPct.toFixed(1)}%, PM ${optional.pmPct.toFixed(1)}%`,
+    `Rental tax on positive cash flow: ${optional.rentalTaxPct.toFixed(1)}%`,
+    `Sale closing costs: ${optional.sellClosingCostPct.toFixed(1)}%`,
+    piText,
+    `Avoided Negative Cash Flow: When RENT net cash flow is negative, we assume SELL avoids that outflow and invests the same amount in stocks at the market return.`
+  ];
+
   note.innerHTML = `
     <div class="muted">
-      <strong>Key assumptions (editable in Optional Assumptions):</strong><br/>
-      Market return: ${optional.marketReturn.toFixed(1)}% · Home appreciation: ${optional.homeAppreciation.toFixed(1)}% · Inflation/rent growth: ${optional.inflation.toFixed(1)}%<br/>
-      Rental costs: Vacancy ${optional.vacancyPct.toFixed(1)}%, Maint ${optional.maintPct.toFixed(1)}%, CapEx ${optional.capexPct.toFixed(1)}%, PM ${optional.pmPct.toFixed(1)}%, Rental tax ${optional.rentalTaxRate.toFixed(1)}%<br/>
-      Sale tax: simplified rule (if lived ≥ 2 years, assume 0% capital gains tax; if lived < 2 years, apply cap gains rate to (sale price − cost basis) if provided).<br/>
-      ${piText}<br/>
-      <em>Avoided Negative Cash Flow:</em> When RENT monthly cash flow is negative, this model assumes SELL avoids that cash outflow and the avoided amount is 100% invested in stocks (earning the market return). This is a simplifying assumption and not financial/tax advice.
+      <strong>Key assumptions (editable in Optional Assumptions):</strong>
+      <ul>
+        ${items.map((t) => `<li>${t}</li>`).join("")}
+      </ul>
     </div>
   `;
 }
