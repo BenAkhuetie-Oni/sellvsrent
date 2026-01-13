@@ -18,16 +18,29 @@ function money(n) {
   return x.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
 
-// Nearest $1K for “K” formatting in summary bullets
-function moneyK(n) {
-  const x = Number(n);
+function roundTo1K(n) { return Math.round(Number(n) / 1000) * 1000; }
+
+// Format a number as "$123K" or "$1.2M" (nearest $1K, 1 decimal for M)
+function moneyKM(n) {
+  const x = roundTo1K(n);
   if (!Number.isFinite(x)) return "—";
-  const rounded = Math.round(x / 1000);
-  const sign = rounded < 0 ? "-" : "";
-  return `${sign}$${Math.abs(rounded)}K`;
+  const sign = x < 0 ? "-" : "";
+  const ax = Math.abs(x);
+
+  if (ax >= 1_000_000) {
+    const m = ax / 1_000_000;
+    const text = (m >= 10) ? m.toFixed(0) : m.toFixed(1);
+    return `${sign}$${text}M`;
+  }
+  return `${sign}$${Math.round(ax / 1000)}K`;
 }
 
-function roundTo1K(n) { return Math.round(Number(n) / 1000) * 1000; }
+function formatNetWorthBreakdown(stocks, homeEquity) {
+  const s = roundTo1K(stocks);
+  const e = roundTo1K(homeEquity);
+  const total = s + e;
+  return `${moneyKM(total)} (${moneyKM(s)} stocks, ${moneyKM(e)} home equity)`;
+}
 
 function mortgagePayment(principal, annualRateDecimal, termMonths) {
   if (termMonths <= 0 || principal <= 0) return 0;
@@ -85,9 +98,6 @@ function parseInputs() {
     loanEnd: parseMonthInput($("loanEnd").value),
     taxesMonthly: clampNumber($("taxesMonthly").value),
     insMonthly: clampNumber($("insMonthly").value),
-
-    refiRate: clampNumber($("refiRate").value),
-    refiCashIn: clampNumber($("refiCashIn").value),
   };
 
   const optional = {
@@ -103,10 +113,6 @@ function parseInputs() {
 
     rentalTaxRate: clampNumber($("rentalTaxRate").value, 0),
 
-    refiTermYears: clampNumber($("refiTermYears").value, 30),
-    refiClosingPct: clampNumber($("refiClosingPct").value, 2),
-
-    withdrawalRate: clampNumber($("withdrawalRate").value, 4),
     capGainsRate: clampNumber($("capGainsRate").value, 15),
 
     costBasis: $("costBasis").value.trim() === "" ? null : clampNumber($("costBasis").value),
@@ -124,9 +130,8 @@ function computeDerived(required) {
 
   const today = getTodayMonthStart();
   const monthsRemaining = (required.loanEnd) ? monthsBetween(today, required.loanEnd) : null;
-  const yearsRemaining = (monthsRemaining == null) ? null : Math.max(0, monthsRemaining / 12);
 
-  return { yearsLived, monthsRemaining, yearsRemaining };
+  return { yearsLived, monthsRemaining };
 }
 
 function validateInputs(inputs) {
@@ -153,10 +158,6 @@ function validateInputs(inputs) {
   if (required.taxesMonthly < 0) errors.push("Monthly property taxes must be ≥ 0");
   if (required.insMonthly < 0) errors.push("Monthly insurance must be ≥ 0");
 
-  reqPos("Refi interest rate", required.refiRate);
-  if (required.refiCashIn < 0) errors.push("Cash-in paydown must be ≥ 0");
-  if (optional.refiTermYears <= 0) errors.push("Refi term years must be > 0");
-
   if (optional.overridePIAmount != null && !(optional.overridePIAmount > 0)) {
     errors.push("Override P&I must be > 0 if provided");
   }
@@ -165,7 +166,7 @@ function validateInputs(inputs) {
 }
 
 // -----------------------------
-// Simulation
+// Simulation (SELL vs RENT)
 // -----------------------------
 function runSimulation(inputs, derived) {
   const { required, optional } = inputs;
@@ -187,20 +188,13 @@ function runSimulation(inputs, derived) {
   const saleClose = pctToDecimal(optional.saleClosingPct);
   const capGainsRate = pctToDecimal(optional.capGainsRate);
 
-  const refiClose = pctToDecimal(optional.refiClosingPct);
-  const refiTermMonths = Math.round(optional.refiTermYears * 12);
-
   const currRateAnnual = pctToDecimal(required.currRate);
   const currTermMonths = Math.round(derived.monthsRemaining);
   const currPIComputed = mortgagePayment(required.loanBalance, currRateAnnual, currTermMonths);
   const currPIForCashFlow = (optional.overridePIAmount != null) ? optional.overridePIAmount : currPIComputed;
 
-  const refiRateAnnual = pctToDecimal(required.refiRate);
-
-  // Equal starting net worth: assume refi cash-in exists in all scenarios at Year 0
-  const startingCash = Math.max(0, required.refiCashIn);
   const baselineEquity = required.homeValue - required.loanBalance;
-  const baselineNW = baselineEquity + startingCash;
+  const baselineNW = baselineEquity;
 
   function computeSaleTax(salePrice) {
     const yearsLived = derived.yearsLived ?? 0;
@@ -215,44 +209,38 @@ function runSimulation(inputs, derived) {
       kind,
       homeValue: required.homeValue,
       loanBal: required.loanBalance,
-      invest: startingCash,    // liquid investment account (market)
-      oop: 0,                  // tracks out-of-pocket drag (negative CF)
-      yearRentalIncome: Array(YEARS + 1).fill(0) // annual net rental cash flow (after rental tax)
+      invest: 0,   // stocks / liquid investments
+      oop: 0       // out-of-pocket drag (negative CF)
     };
   }
 
   const sell = makeScenario("SELL");
-  const rentKeep = makeScenario("RENT_NO_REFI");
-  const rentRefi = makeScenario("RENT_WITH_REFI");
+  const rent = makeScenario("RENT");
 
   const series = {
     years: Array.from({ length: YEARS + 1 }, (_, i) => i),
 
+    // totals
     sellNW: Array(YEARS + 1).fill(0),
-    rentKeepNW: Array(YEARS + 1).fill(0),
-    rentRefiNW: Array(YEARS + 1).fill(0),
+    rentNW: Array(YEARS + 1).fill(0),
 
-    // Income split
-    sellNonRentalIncome: Array(YEARS + 1).fill(0),
-    sellRentalIncome: Array(YEARS + 1).fill(0),
-    sellIncomePotential: Array(YEARS + 1).fill(0),
+    // breakdowns
+    sellStocks: Array(YEARS + 1).fill(0),
+    sellEquity: Array(YEARS + 1).fill(0),
 
-    rentKeepNonRentalIncome: Array(YEARS + 1).fill(0),
-    rentKeepRentalIncome: Array(YEARS + 1).fill(0),
-    rentKeepIncomePotential: Array(YEARS + 1).fill(0),
-
-    rentRefiNonRentalIncome: Array(YEARS + 1).fill(0),
-    rentRefiRentalIncome: Array(YEARS + 1).fill(0),
-    rentRefiIncomePotential: Array(YEARS + 1).fill(0),
-
-    rentKeepYear1AnnualRentalIncome: 0,
-    rentRefiYear1AnnualRentalIncome: 0,
+    rentStocks: Array(YEARS + 1).fill(0),
+    rentEquity: Array(YEARS + 1).fill(0),
   };
 
-  // Year 0 equal
+  // Year 0 (equal starting net worth)
   series.sellNW[0] = baselineNW;
-  series.rentKeepNW[0] = baselineNW;
-  series.rentRefiNW[0] = baselineNW;
+  series.rentNW[0] = baselineNW;
+
+  series.sellStocks[0] = 0;
+  series.sellEquity[0] = baselineNW;
+
+  series.rentStocks[0] = 0;
+  series.rentEquity[0] = baselineNW;
 
   // SELL transaction at start of Month 1
   {
@@ -268,139 +256,68 @@ function runSimulation(inputs, derived) {
     sell.homeValue = 0;
 
     if (remainingProceeds >= 0) sell.invest += remainingProceeds;
-    else sell.oop += remainingProceeds;
+    else sell.oop += remainingProceeds; // negative
   }
 
-  // RENT (w/ REFI) transaction at start of Month 1
-  // Cash-in reduces principal; closing costs reduce liquid invest
-  {
-    const cashIn = Math.min(rentRefi.invest, required.refiCashIn);
-    rentRefi.invest -= cashIn;
-    rentRefi.loanBal = Math.max(0, rentRefi.loanBal - cashIn);
-
-    const closingCosts = rentRefi.loanBal * refiClose;
-    if (rentRefi.invest >= closingCosts) rentRefi.invest -= closingCosts;
-    else {
-      const shortfall = closingCosts - rentRefi.invest;
-      rentRefi.invest = 0;
-      rentRefi.oop -= shortfall;
-    }
-  }
-
-  const refiPI = mortgagePayment(rentRefi.loanBal, refiRateAnnual, refiTermMonths);
-
-  // SELL net worth “hit” due to transaction costs (nearest $1K)
+  // Net worth “hit” due to transaction costs (nearest $1K)
   const sellNWAfterTransaction = sell.invest + sell.oop;
   const sellTransactionHit = roundTo1K(baselineNW - sellNWAfterTransaction);
 
   // Track rents + costs inflated monthly
-  let rent = required.monthlyRent;
+  let rentIncome = required.monthlyRent;
   let taxes = required.taxesMonthly;
   let ins = required.insMonthly;
 
-  // Refi breakeven: include BOTH (cash-in + closing costs)
-  // (Your requested definition: treat cash-in as part of the “upfront cost”.)
-  const refiClosingFees = rentRefi.loanBal * refiClose;
-  const refiUpfrontCost = Math.max(0, required.refiCashIn) + refiClosingFees;
-
-  // Run monthly
   for (let m = 1; m <= MONTHS; m++) {
-    rent *= (1 + inflM);
+    rentIncome *= (1 + inflM);
     taxes *= (1 + inflM);
     ins *= (1 + inflM);
 
-    rentKeep.homeValue *= (1 + homeAppM);
-    rentRefi.homeValue *= (1 + homeAppM);
+    // Appreciate home value (RENT scenario only)
+    rent.homeValue *= (1 + homeAppM);
 
+    // Grow investment accounts
     sell.invest *= (1 + marketM);
-    rentKeep.invest *= (1 + marketM);
-    rentRefi.invest *= (1 + marketM);
+    rent.invest *= (1 + marketM);
 
-    // RENT (w/o REFI)
+    // RENT scenario monthly cash flow
     {
-      const opCosts = rent * (vacancy + maint + capex + pm);
+      const opCosts = rentIncome * (vacancy + maint + capex + pm);
 
       let piCash = 0;
-      if (rentKeep.loanBal > 0) {
+      if (rent.loanBal > 0) {
         piCash = currPIForCashFlow;
 
-        const interest = rentKeep.loanBal * (currRateAnnual / 12);
+        const interest = rent.loanBal * (currRateAnnual / 12);
         const principalPaid = Math.max(0, currPIComputed - interest);
-        rentKeep.loanBal = Math.max(0, rentKeep.loanBal - principalPaid);
+        rent.loanBal = Math.max(0, rent.loanBal - principalPaid);
       }
 
-      let net = rent - opCosts - piCash - taxes - ins;
+      let net = rentIncome - opCosts - piCash - taxes - ins;
       if (net > 0 && rentalTax > 0) net *= (1 - rentalTax);
 
-      if (net >= 0) rentKeep.invest += net;
-      else rentKeep.oop += net;
-
-      const year = Math.ceil(m / 12);
-      rentKeep.yearRentalIncome[year] += net;
-    }
-
-    // RENT (w/ REFI)
-    {
-      const opCosts = rent * (vacancy + maint + capex + pm);
-
-      let piCash = 0;
-      if (rentRefi.loanBal > 0) {
-        piCash = refiPI;
-
-        const interest = rentRefi.loanBal * (refiRateAnnual / 12);
-        const principalPaid = Math.max(0, refiPI - interest);
-        rentRefi.loanBal = Math.max(0, rentRefi.loanBal - principalPaid);
-      }
-
-      let net = rent - opCosts - piCash - taxes - ins;
-      if (net > 0 && rentalTax > 0) net *= (1 - rentalTax);
-
-      if (net >= 0) rentRefi.invest += net;
-      else rentRefi.oop += net;
-
-      const year = Math.ceil(m / 12);
-      rentRefi.yearRentalIncome[year] += net;
+      if (net >= 0) rent.invest += net;
+      else rent.oop += net;
     }
 
     // Year-end snapshots
     if (m % 12 === 0) {
       const y = m / 12;
-      const wd = pctToDecimal(optional.withdrawalRate);
 
-      // Net worth
-      series.sellNW[y] = sell.invest + sell.oop;
-      series.rentKeepNW[y] = (rentKeep.homeValue - rentKeep.loanBal) + rentKeep.invest + rentKeep.oop;
-      series.rentRefiNW[y] = (rentRefi.homeValue - rentRefi.loanBal) + rentRefi.invest + rentRefi.oop;
+      // SELL (all in stocks; no home equity)
+      series.sellStocks[y] = sell.invest + sell.oop;
+      series.sellEquity[y] = 0;
+      series.sellNW[y] = series.sellStocks[y] + series.sellEquity[y];
 
-      // Income components
-      // Non-Rental Income = withdrawal from liquid investment account
-      series.sellNonRentalIncome[y] = sell.invest * wd;
-      series.rentKeepNonRentalIncome[y] = rentKeep.invest * wd;
-      series.rentRefiNonRentalIncome[y] = rentRefi.invest * wd;
+      // RENT (split between stocks + home equity)
+      const equity = (rent.homeValue - rent.loanBal);
+      const stocks = rent.invest + rent.oop;
 
-      // Rental Income = net rental cash flow (after rental tax)
-      series.sellRentalIncome[y] = 0;
-      series.rentKeepRentalIncome[y] = rentKeep.yearRentalIncome[y];
-      series.rentRefiRentalIncome[y] = rentRefi.yearRentalIncome[y];
-
-      // Income Potential = Non-Rental + Rental
-      series.sellIncomePotential[y] = series.sellNonRentalIncome[y] + series.sellRentalIncome[y];
-      series.rentKeepIncomePotential[y] = series.rentKeepNonRentalIncome[y] + series.rentKeepRentalIncome[y];
-      series.rentRefiIncomePotential[y] = series.rentRefiNonRentalIncome[y] + series.rentRefiRentalIncome[y];
-
-      if (y === 1) {
-        series.rentKeepYear1AnnualRentalIncome = rentKeep.yearRentalIncome[1];
-        series.rentRefiYear1AnnualRentalIncome = rentRefi.yearRentalIncome[1];
-      }
+      series.rentEquity[y] = equity;
+      series.rentStocks[y] = stocks;
+      series.rentNW[y] = equity + stocks;
     }
   }
-
-  // Refi breakeven: (upfront cost) / (year-1 monthly rental income improvement)
-  // If refi doesn't improve year-1 rental income, mark as N/A.
-  const year1Delta = series.rentRefiRentalIncome[1] - series.rentKeepRentalIncome[1];
-  const monthlyDelta = year1Delta / 12;
-  let breakevenMonths = null;
-  if (monthlyDelta > 0) breakevenMonths = refiUpfrontCost / monthlyDelta;
 
   const taxLine = (derived.yearsLived ?? 0) >= 2
     ? "Sale tax: assumed 0% capital gains tax because time in home ≥ 2 years (simplified rule)."
@@ -412,15 +329,10 @@ function runSimulation(inputs, derived) {
     series,
     meta: {
       baselineNW,
-      startingCash,
       yearsLived: derived.yearsLived,
       currPIComputed,
       currPIForCashFlow,
-      refiPI,
       sellTransactionHit,
-      refiClosingFees,
-      refiUpfrontCost,
-      breakevenMonths,
       taxLine
     }
   };
@@ -434,27 +346,17 @@ let lastResult = null;
 
 function labelScenario(key) {
   if (key === "sell") return "SELL";
-  if (key === "rentKeep") return "RENT (w/o REFI)";
-  if (key === "rentRefi") return "RENT (w/ REFI)";
+  if (key === "rent") return "RENT";
   return "—";
 }
 
-function pickWinnerAtYear(series, y, which) {
-  const map = {
-    nw: [
-      { key: "sell", v: series.sellNW[y] },
-      { key: "rentKeep", v: series.rentKeepNW[y] },
-      { key: "rentRefi", v: series.rentRefiNW[y] },
-    ],
-    incomePotential: [
-      { key: "sell", v: series.sellIncomePotential[y] },
-      { key: "rentKeep", v: series.rentKeepIncomePotential[y] },
-      { key: "rentRefi", v: series.rentRefiIncomePotential[y] },
-    ]
-  };
+function pickWinnerAtYear(series, y) {
+  const vals = [
+    { key: "sell", v: series.sellNW[y] },
+    { key: "rent", v: series.rentNW[y] },
+  ].slice().sort((a, b) => b.v - a.v);
 
-  const vals = map[which].slice().sort((a, b) => b.v - a.v);
-  return { top: vals[0], bottom: vals[2] };
+  return { top: vals[0], bottom: vals[1] };
 }
 
 function renderChart(series) {
@@ -467,8 +369,7 @@ function renderChart(series) {
       labels: series.years,
       datasets: [
         { label: "SELL", data: series.sellNW, tension: 0.25, pointRadius: 0, borderWidth: 2 },
-        { label: "RENT (w/o REFI)", data: series.rentKeepNW, tension: 0.25, pointRadius: 0, borderWidth: 2 },
-        { label: "RENT (w/ REFI)", data: series.rentRefiNW, tension: 0.25, pointRadius: 0, borderWidth: 2 }
+        { label: "RENT", data: series.rentNW, tension: 0.25, pointRadius: 0, borderWidth: 2 }
       ]
     },
     options: {
@@ -499,45 +400,20 @@ function renderChart(series) {
   });
 }
 
-function formatIncomePotential(total, nonRental, rental) {
-  // all rounded to nearest $1K, as requested
-  const t = roundTo1K(total);
-  const nr = roundTo1K(nonRental);
-  const r = roundTo1K(rental);
-  return `${moneyK(t)} (${moneyK(nr)} Non-Rental, ${moneyK(r)} Rental)`;
-}
-
 function renderTable(series) {
   const years = [0, 1, 5, 10, 30];
   const tbody = $("summaryTable").querySelector("tbody");
   tbody.innerHTML = "";
 
   years.forEach((y) => {
-    const sellIncome = formatIncomePotential(
-      series.sellIncomePotential[y],
-      series.sellNonRentalIncome[y],
-      series.sellRentalIncome[y]
-    );
-    const keepIncome = formatIncomePotential(
-      series.rentKeepIncomePotential[y],
-      series.rentKeepNonRentalIncome[y],
-      series.rentKeepRentalIncome[y]
-    );
-    const refiIncome = formatIncomePotential(
-      series.rentRefiIncomePotential[y],
-      series.rentRefiNonRentalIncome[y],
-      series.rentRefiRentalIncome[y]
-    );
+    const sellText = formatNetWorthBreakdown(series.sellStocks[y], series.sellEquity[y]);
+    const rentText = formatNetWorthBreakdown(series.rentStocks[y], series.rentEquity[y]);
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${y}</td>
-      <td>${money(series.sellNW[y])}</td>
-      <td>${sellIncome}</td>
-      <td>${money(series.rentKeepNW[y])}</td>
-      <td>${keepIncome}</td>
-      <td>${money(series.rentRefiNW[y])}</td>
-      <td>${refiIncome}</td>
+      <td>${sellText}</td>
+      <td>${rentText}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -545,45 +421,10 @@ function renderTable(series) {
 
 function renderResultsSummary(series, meta) {
   const y = YEARS;
-
-  const nw = pickWinnerAtYear(series, y, "nw");
-  const inc = pickWinnerAtYear(series, y, "incomePotential");
+  const nw = pickWinnerAtYear(series, y);
 
   const nwTop = labelScenario(nw.top.key);
   const nwBottom = labelScenario(nw.bottom.key);
-
-  const incTop = labelScenario(inc.top.key);
-  const incBottom = labelScenario(inc.bottom.key);
-
-  // Year-30 income split for the income winner
-  const incomeMap = {
-    sell: {
-      total: series.sellIncomePotential[y],
-      nonRental: series.sellNonRentalIncome[y],
-      rental: series.sellRentalIncome[y],
-    },
-    rentKeep: {
-      total: series.rentKeepIncomePotential[y],
-      nonRental: series.rentKeepNonRentalIncome[y],
-      rental: series.rentKeepRentalIncome[y],
-    },
-    rentRefi: {
-      total: series.rentRefiIncomePotential[y],
-      nonRental: series.rentRefiNonRentalIncome[y],
-      rental: series.rentRefiRentalIncome[y],
-    }
-  };
-
-  const winKey = inc.top.key;
-  const winIncome = incomeMap[winKey];
-
-  const sellHit = meta.sellTransactionHit;
-
-  const rentNoRefiYear1Annual = roundTo1K(series.rentKeepYear1AnnualRentalIncome);
-  const rentWithRefiYear1Annual = roundTo1K(series.rentRefiYear1AnnualRentalIncome);
-
-  const rentNoRefiMonthly = roundTo1K(rentNoRefiYear1Annual / 12);
-  const rentWithRefiMonthly = roundTo1K(rentWithRefiYear1Annual / 12);
 
   const ul = $("resultsSummary");
   ul.innerHTML = "";
@@ -595,35 +436,15 @@ function renderResultsSummary(series, meta) {
   };
 
   li(`Net Worth: ${nwTop} results in your highest net worth in ${y} years, while ${nwBottom} resulted in your lowest net worth.`);
+  li(`SELL: Your net worth takes a ~${moneyKM(meta.sellTransactionHit)} hit due to total transaction costs.`);
 
-  li(
-    `Income Potential: ${incTop} results in your highest income potential in ${y} years of ~${moneyK(winIncome.total)}/yr ` +
-    `(~${moneyK(winIncome.nonRental)} Non-Rental, ~${moneyK(winIncome.rental)} Rental), while ${incBottom} resulted in your lowest income potential.`
-  );
-
-  li(`SELL: Your net worth takes a ~${moneyK(sellHit)} hit due to total transaction costs.`);
-  li(`RENT (w/o REFI): Renting your home (without refinancing) results in an estimated net rental income of ${moneyK(rentNoRefiMonthly)} per month (${moneyK(rentNoRefiYear1Annual)} per year) in year 1.`);
-  li(`RENT (w/ REFI): Renting your home (with refinancing) results in an estimated net rental income of ${moneyK(rentWithRefiMonthly)} per month (${moneyK(rentWithRefiYear1Annual)} per year) in year 1.`);
-
-  // Additional details + breakeven
   const notes = $("resultsNotes");
-
-  let breakevenText = "Refi breakeven: not applicable (refi does not improve year-1 net rental income).";
-  if (meta.breakevenMonths != null && Number.isFinite(meta.breakevenMonths)) {
-    const months = meta.breakevenMonths;
-    if (months <= 0) breakevenText = "Refi breakeven: immediate (year-1 net rental income improvement is already positive).";
-    else if (months > 600) breakevenText = "Refi breakeven: 50+ years (upfront costs likely never paid back via improved rental cash flow).";
-    else breakevenText = `Refi breakeven: ~${months.toFixed(0)} months (~${(months/12).toFixed(1)} years), based on year-1 monthly net rental income improvement vs upfront refi costs (cash-in + closing fees).`;
-  }
-
   notes.innerHTML = `
     <div class="noteTitle">Additional details</div>
     <div class="noteBody">
-      <strong>Rental Income</strong> is the property’s annual net rental cash flow (rent minus vacancy/repairs/capex/PM/PITI), after the optional rental tax rate.<br/>
-      <strong>Non-Rental Income</strong> is a rule-of-thumb withdrawal (default ${$("withdrawalRate").value || "4.0"}%) from the liquid investment account.<br/>
-      <strong>Income Potential</strong> = Rental Income + Non-Rental Income.<br/>
-      A refi can lower monthly payments but still reduce long-term results due to (a) upfront costs (cash-in + closing fees), (b) reset amortization, and (c) locking cash into equity instead of letting it compound in the market.
-      <div class="noteLine">${breakevenText}</div>
+      <strong>RENT net worth</strong> includes both stocks (your liquid investment account) and home equity (home value minus remaining loan balance).<br/>
+      <strong>SELL net worth</strong> is modeled as fully liquid (stocks) after sale proceeds (net of closing costs, simplified sale tax, and mortgage payoff) are invested in the market.<br/>
+      ${meta.taxLine}
     </div>
   `;
 }
@@ -642,10 +463,7 @@ function renderAssumptionNote(meta, inputs) {
       Market return: ${optional.marketReturn.toFixed(1)}% · Home appreciation: ${optional.homeAppreciation.toFixed(1)}% · Inflation/rent growth: ${optional.inflation.toFixed(1)}%<br/>
       Rental costs: Vacancy ${optional.vacancyPct.toFixed(1)}%, Maint ${optional.maintPct.toFixed(1)}%, CapEx ${optional.capexPct.toFixed(1)}%, PM ${optional.pmPct.toFixed(1)}% · Rental tax rate: ${optional.rentalTaxRate.toFixed(1)}%<br/>
       ${meta.taxLine}<br/>
-      ${piLine}<br/>
-      Refi P&amp;I (computed): ${money(meta.refiPI)} · Refi closing fees: ${optional.refiClosingPct.toFixed(1)}% of new loan<br/>
-      Refi upfront costs (for breakeven): cash-in + closing fees = ${money(meta.refiUpfrontCost)}<br/>
-      Starting net worth is equal at Year 0 (we assume the refi cash-in amount exists in all scenarios at Year 0).
+      ${piLine}
     </div>
   `;
 }
@@ -654,17 +472,11 @@ function buildCsv(series) {
   const header = [
     "Year",
     "SELL_NetWorth",
-    "SELL_IncomePotential",
-    "SELL_NonRentalIncome",
-    "SELL_RentalIncome",
-    "RENT_wo_REFI_NetWorth",
-    "RENT_wo_REFI_IncomePotential",
-    "RENT_wo_REFI_NonRentalIncome",
-    "RENT_wo_REFI_RentalIncome",
-    "RENT_w_REFI_NetWorth",
-    "RENT_w_REFI_IncomePotential",
-    "RENT_w_REFI_NonRentalIncome",
-    "RENT_w_REFI_RentalIncome",
+    "SELL_Stocks",
+    "SELL_HomeEquity",
+    "RENT_NetWorth",
+    "RENT_Stocks",
+    "RENT_HomeEquity"
   ];
   const rows = [header.join(",")];
 
@@ -672,17 +484,11 @@ function buildCsv(series) {
     rows.push([
       y,
       series.sellNW[y],
-      series.sellIncomePotential[y],
-      series.sellNonRentalIncome[y],
-      series.sellRentalIncome[y],
-      series.rentKeepNW[y],
-      series.rentKeepIncomePotential[y],
-      series.rentKeepNonRentalIncome[y],
-      series.rentKeepRentalIncome[y],
-      series.rentRefiNW[y],
-      series.rentRefiIncomePotential[y],
-      series.rentRefiNonRentalIncome[y],
-      series.rentRefiRentalIncome[y],
+      series.sellStocks[y],
+      series.sellEquity[y],
+      series.rentNW[y],
+      series.rentStocks[y],
+      series.rentEquity[y]
     ].join(","));
   }
   return rows.join("\n");
@@ -735,8 +541,8 @@ function run() {
 
   setResultsVisible(true);
 
-  // Net Worth Winner pill (Year 30) — label only (no $ value)
-  const nwWinner = pickWinnerAtYear(result.series, YEARS, "nw");
+  // Net Worth Winner pill (Year 30) — label only
+  const nwWinner = pickWinnerAtYear(result.series, YEARS);
   $("netWorthWinner").textContent = labelScenario(nwWinner.top.key);
 
   renderChart(result.series);
@@ -751,7 +557,7 @@ function resetAll() {
   [
     "homeValue","loanBalance","monthlyRent",
     "movedIn","movedOut","currRate","loanEnd",
-    "taxesMonthly","insMonthly","refiRate","refiCashIn"
+    "taxesMonthly","insMonthly"
   ].forEach(id => { $(id).value = ""; });
 
   $("overridePIAmount").value = "";

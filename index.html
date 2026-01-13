@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sell vs Rent My House Calculator</title>
-  <meta name="description" content="Compare SELL vs RENT (w/o REFI) vs RENT (w/ REFI) for net worth and income potential over 30 years." />
+  <meta name="description" content="Compare SELL vs RENT for net worth over 30 years." />
 
   <!-- Google Analytics (reused from your template) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R1KF7GYGF"></script>
@@ -15,7 +15,7 @@
     gtag('config', 'G-3R1KF7GYGF');
   </script>
 
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles_updated.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 
@@ -26,14 +26,14 @@
         <div class="title">Sell vs Rent My House Calculator</div>
         <div class="subtitle">
           Made by
-          <a class="link" href="https://AIMadeMeWealthy.com" target="_blank" rel="noopener">AIMadeMeWealthy.com</a>
+          <a class="link" href="https://outdoorfinancialfreedom.com" target="_blank" rel="noopener">OutdoorFinancialFreedom.com</a>
           · 30-year projection · Not financial/tax advice
         </div>
       </div>
 
       <div class="topCta">
-        <a class="ctaLink" href="https://AIMadeMeWealthy.com" target="_blank" rel="noopener">
-          Visit AIMadeMeWealthy.com →
+        <a class="ctaLink" href="https://outdoorfinancialfreedom.com" target="_blank" rel="noopener">
+          Visit OutdoorFinancialFreedom.com →
         </a>
       </div>
     </div>
@@ -115,22 +115,6 @@
               If you want, you can override monthly P&amp;I for cash flow in Optional Assumptions.
             </div>
           </div>
-
-          <hr class="sep" />
-
-          <h3 class="subhead">Refinance (RENT w/ REFI)</h3>
-          <div class="grid2">
-            <label>
-              Refi interest rate (APR %)
-              <input id="refiRate" type="number" min="0" step="0.01" placeholder="5.75" />
-            </label>
-
-            <label>
-              Cash-in principal paydown at refi
-              <input id="refiCashIn" type="number" min="0" step="500" placeholder="20000" />
-              <small class="hint">We assume this same cash exists in all scenarios at Year 0 so starting net worth is equal.</small>
-            </label>
-          </div>
         </section>
 
         <!-- Optional assumptions -->
@@ -186,22 +170,6 @@
               <label>
                 Tax on positive rental cash flow (%)
                 <input id="rentalTaxRate" type="number" min="0" step="0.1" value="0.0" />
-              </label>
-
-              <label>
-                Refi term (years)
-                <input id="refiTermYears" type="number" min="1" step="1" value="30" />
-              </label>
-
-              <label>
-                Refi closing costs (% of new loan)
-                <input id="refiClosingPct" type="number" min="0" step="0.1" value="2.0" />
-              </label>
-
-              <label>
-                Non-Rental Income rate (withdrawal %, annual)
-                <input id="withdrawalRate" type="number" min="0" step="0.1" value="4.0" />
-                <small class="hint">Used for Non-Rental Income (rule-of-thumb).</small>
               </label>
 
               <label>
@@ -275,24 +243,15 @@
 
         <!-- Table card (hidden until run) -->
         <section class="card hidden" id="cardTable">
-          <h2>Net worth + income snapshots</h2>
+          <h2>Net Worth Results</h2>
 
           <div class="tableWrap">
             <table class="table" id="summaryTable">
               <thead>
                 <tr>
-                  <th rowspan="2">Year</th>
-                  <th colspan="2" class="groupHead">SELL</th>
-                  <th colspan="2" class="groupHead">RENT (w/o REFI)</th>
-                  <th colspan="2" class="groupHead">RENT (w/ REFI)</th>
-                </tr>
-                <tr>
-                  <th>Net Worth</th>
-                  <th>Income Potential</th>
-                  <th>Net Worth</th>
-                  <th>Income Potential</th>
-                  <th>Net Worth</th>
-                  <th>Income Potential</th>
+                  <th>Year</th>
+                  <th class="groupHead">SELL</th>
+                  <th class="groupHead">RENT</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -320,6 +279,6 @@
     </div>
   </footer>
 
-  <script src="script.js"></script>
+  <script src="script_updated.js"></script>
 </body>
 </html>
