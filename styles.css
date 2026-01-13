@@ -393,10 +393,6 @@ input:focus{
 .muted{ color: var(--muted); }
 
 
-/* Accordion default (closed) */
-.accordionBody{ display:none; }
-.accordion[aria-expanded="true"] + .accordionBody{ display:block; }
-
 /* Note box lists */
 .noteBox ul{ margin: 8px 0 0 18px; }
 .noteBox li{ margin: 4px 0; }
