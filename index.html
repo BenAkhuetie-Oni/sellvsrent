@@ -1,56 +1,211 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Sell vs Rent My House Calculator</title>
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sell vs Rent My House Calculator</title>
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
-
 <body>
   <header class="top">
-    <div>
-      <h1>Sell vs Rent My House Calculator</h1>
-      <p class="sub">
-        Made by <a href="https://outdoorfinancialfreedom.com" target="_blank">Outdoor Financial Freedom</a> ·
-        30-year projection · Not financial/tax advice
-      </p>
+    <div class="wrap">
+      <div class="brand">
+        <h1>Sell vs Rent My House Calculator</h1>
+        <div class="sub">
+          Made by <a href="https://outdoorfinancialfreedom.com/" target="_blank" rel="noopener">Outdoor Financial Freedom</a> · 30‑year projection · Not financial/tax advice
+        </div>
+      </div>
+      <a class="pill" href="https://outdoorfinancialfreedom.com/" target="_blank" rel="noopener">Visit OutdoorFinancialFreedom.com →</a>
     </div>
-    <a class="cta" href="https://outdoorfinancialfreedom.com" target="_blank">
-      Visit OutdoorFinancialFreedom.com →
-    </a>
   </header>
 
-  <main class="grid">
+  <main class="wrap grid">
     <!-- LEFT COLUMN -->
-    <section class="left">
+    <div class="col">
+
       <section class="card">
         <h2>Required inputs</h2>
-        <!-- inputs unchanged -->
+
+        <div class="grid2">
+          <label>
+            Home value (sale price today)
+            <input id="homeValue" type="number" value="450000" min="0" step="1000" />
+          </label>
+
+          <label>
+            Remaining loan balance
+            <input id="loanBalance" type="number" value="310000" min="0" step="1000" />
+          </label>
+
+          <label class="span2">
+            Estimated monthly rent
+            <input id="rentMonthly" type="number" value="3000" min="0" step="50" />
+          </label>
+        </div>
+
+        <hr class="sep" />
+
+        <h3>Primary residence dates (for simplified sale tax)</h3>
+        <div class="grid2">
+          <label>
+            Month/year moved in
+            <input id="movedIn" type="month" />
+          </label>
+          <label>
+            Month/year moved out (or planned future move out date)
+            <input id="movedOut" type="month" />
+          </label>
+        </div>
+
+        <hr class="sep" />
+
+        <h3>Current mortgage (for amortization)</h3>
+        <div class="grid2">
+          <label>
+            Current interest rate (APR %)
+            <input id="currRate" type="number" value="6.5" step="0.01" min="0" />
+          </label>
+          <label>
+            Month/year loan ends
+            <input id="loanEnd" type="month" />
+          </label>
+
+          <label>
+            Monthly property taxes (T)
+            <input id="taxesMonthly" type="number" value="450" min="0" step="10" />
+          </label>
+          <label>
+            Monthly insurance (Ins)
+            <input id="insMonthly" type="number" value="150" min="0" step="10" />
+          </label>
+        </div>
+
+        <div class="note">
+          <div class="noteTitle">Note on P&amp;I</div>
+          <div class="noteBody">
+            We compute monthly principal &amp; interest from balance, rate, and loan end date.
+            If you want, you can override monthly P&amp;I for cash flow in Optional assumptions.
+          </div>
+        </div>
+
+        <div class="hint">We assume the same starting cash exists in all scenarios at Year 0 so starting net worth is comparable.</div>
       </section>
 
       <section class="card">
-        <button id="runBtn">Run calculation</button>
-        <button id="resetBtn">Reset</button>
-        <button id="csvBtn">Download CSV</button>
+        <button class="accordion" id="toggleOptional" aria-expanded="false" type="button">
+          <span>Optional assumptions</span>
+          <span class="chev">▾</span>
+        </button>
+
+        <div class="accordionBody" id="optionalBody">
+          <div class="grid2">
+            <label>
+              Sale closing costs (% of sale price)
+              <input id="saleClosingPct" type="number" value="6.0" step="0.1" min="0" />
+            </label>
+
+            <label>
+              Market return (annual %, nominal)
+              <input id="marketReturn" type="number" value="7.0" step="0.1" min="0" />
+            </label>
+
+            <label>
+              Home appreciation (annual %, nominal)
+              <input id="homeAppreciation" type="number" value="3.0" step="0.1" min="0" />
+            </label>
+
+            <label>
+              Inflation / rent growth (annual %, nominal)
+              <input id="inflation" type="number" value="3.0" step="0.1" min="0" />
+            </label>
+
+            <label>
+              Vacancy (% of rent)
+              <input id="vacancyPct" type="number" value="5.0" step="0.1" min="0" />
+            </label>
+
+            <label>
+              Repairs &amp; maintenance (% of rent)
+              <input id="maintPct" type="number" value="5.0" step="0.1" min="0" />
+            </label>
+
+            <label>
+              CapEx (% of rent)
+              <input id="capexPct" type="number" value="5.0" step="0.1" min="0" />
+            </label>
+
+            <label>
+              Property manager (% of rent)
+              <input id="pmPct" type="number" value="0.0" step="0.1" min="0" />
+            </label>
+
+            <label>
+              Tax on positive rental cash flow (%)
+              <input id="rentalTaxRate" type="number" value="0.0" step="0.1" min="0" />
+            </label>
+
+            <label>
+              If lived &lt; 2 years: cap gains tax rate (%)
+              <input id="capGainsRate" type="number" value="15.0" step="0.1" min="0" />
+            </label>
+
+            <label class="span2">
+              Optional: estimated cost basis (if blank, assume no capital gain)
+              <input id="costBasis" type="number" placeholder="leave blank to assume no capital gain" min="0" step="1000" />
+            </label>
+
+            <label class="span2">
+              Optional: override current monthly P&amp;I for cash flow
+              <input id="overridePI" type="number" placeholder="leave blank to use computed P&I" min="0" step="10" />
+            </label>
+          </div>
+        </div>
+
+        <div class="btnRow">
+          <button class="btn primary" id="btnRun" type="button">Run calculation</button>
+          <button class="btn" id="btnReset" type="button">Reset</button>
+          <button class="btn" id="btnCsv" type="button">Download CSV</button>
+        </div>
       </section>
 
-      <!-- KIT FORM — EXACT EMBED, UNTOUCHED -->
-      <section class="card newsletter-card">
-        <script
-          async
-          data-uid="eeff810649"
-          src="https://outdoorfinancialfreedom.kit.com/eeff810649/index.js">
-        </script>
-      </section>
-    </section>
+    </div>
 
     <!-- RIGHT COLUMN -->
-    <section class="right">
-      <section class="card">
+    <div class="col">
+
+      <!-- Newsletter (Kit) -->
+      <section class="card" id="kitCard">
+        <div class="kitWrap">
+          <script async data-uid="eeff810649" src="https://outdoorfinancialfreedom.kit.com/eeff810649/index.js"></script>
+        </div>
+      </section>
+
+      <section class="card" id="cardResults" style="display:none;">
+        <h2>Results</h2>
+        <div class="miniCard">
+          <div class="muted">Net Worth Winner (Year 30)</div>
+          <div class="winner" id="winnerText">—</div>
+        </div>
+
+        <div class="chartCard">
+          <canvas id="nwChart" height="160"></canvas>
+        </div>
+      </section>
+
+      <section class="card" id="cardSummary" style="display:none;">
+        <h2>Results Summary</h2>
+        <ul id="resultsSummary">
+          <li>—</li>
+        </ul>
+
+        <div class="noteBox" id="resultsNotesSummary"></div>
+      </section>
+
+      <section class="card" id="cardTable" style="display:none;">
         <h2>Net Worth Results</h2>
-        <div class="table-wrap">
-          <table>
+        <div class="tableWrap">
+          <table class="table" id="summaryTable">
             <thead>
               <tr>
                 <th>Year</th>
@@ -58,15 +213,20 @@
                 <th>RENT</th>
               </tr>
             </thead>
-            <tbody id="resultsBody"></tbody>
+            <tbody></tbody>
           </table>
         </div>
+        <div class="noteBox" id="resultsNotesTable"></div>
       </section>
-    </section>
+
+    </div>
   </main>
 
-  <footer>
-    © 2026 · Sell vs Rent My House Calculator · Not financial/tax advice
+  <footer class="foot">
+    <div class="wrap footInner">
+      <div>© <span id="yearNow"></span> · Sell vs Rent My House Calculator</div>
+      <div class="muted">Not financial/tax advice. For education only.</div>
+    </div>
   </footer>
 
   <script src="script.js"></script>
