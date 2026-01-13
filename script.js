@@ -12,157 +12,103 @@ function clampNumber(n, fallback = 0) {
 function pctToDecimal(pct) { return clampNumber(pct, 0) / 100; }
 function annualToMonthlyRate(annualDecimal) { return Math.pow(1 + annualDecimal, 1 / 12) - 1; }
 
-function money(n) {
+function parseMonthInput(val) {
+  // expects "YYYY-MM" from <input type="month">
+  if (!val || typeof val !== "string" || !/^\d{4}-\d{2}$/.test(val)) return null;
+  const [y, m] = val.split("-").map((x) => Number(x));
+  if (!Number.isFinite(y) || !Number.isFinite(m)) return null;
+  return { y, m };
+}
+function monthsBetween(a, b) {
+  // a, b: {y,m} with m 1-12
+  return (b.y - a.y) * 12 + (b.m - a.m);
+}
+
+function money0(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return "—";
   return x.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
-
-function roundTo1K(n) { return Math.round(Number(n) / 1000) * 1000; }
-
-// Format a number as "$123K" or "$1.2M" (nearest $1K, 1 decimal for M)
-function moneyKM(n) {
-  const x = roundTo1K(n);
+function moneyAbbrev(n) {
+  const x = Number(n);
   if (!Number.isFinite(x)) return "—";
+  const abs = Math.abs(x);
   const sign = x < 0 ? "-" : "";
-  const ax = Math.abs(x);
-
-  if (ax >= 1_000_000) {
-    const m = ax / 1_000_000;
-    const text = (m >= 10) ? m.toFixed(0) : m.toFixed(1);
-    return `${sign}$${text}M`;
-  }
-  return `${sign}$${Math.round(ax / 1000)}K`;
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`;
+  return `${sign}$${Math.round(abs / 1000)}K`;
+}
+function moneyBreakdown(total, stocks, equity) {
+  // total displayed as K/M. stocks/equity rounded to nearest $1K
+  return `${moneyAbbrev(total)} (${moneyAbbrev(stocks)} stocks, ${moneyAbbrev(equity)} home equity)`;
 }
 
-function formatNetWorthBreakdown(stocks, homeEquity) {
-  const s = roundTo1K(stocks);
-  const e = roundTo1K(homeEquity);
-  const total = s + e;
-  return `${moneyKM(total)} (${moneyKM(s)} stocks, ${moneyKM(e)} home equity)`;
+function mortgagePayment(principal, annualRateDec, nMonths) {
+  const P = Math.max(0, principal);
+  const r = Math.max(0, annualRateDec) / 12;
+  const N = Math.max(0, Math.round(nMonths));
+  if (P === 0 || N === 0) return 0;
+  if (r === 0) return P / N;
+  return P * (r * Math.pow(1 + r, N)) / (Math.pow(1 + r, N) - 1);
 }
-
-function mortgagePayment(principal, annualRateDecimal, termMonths) {
-  if (termMonths <= 0 || principal <= 0) return 0;
-  const r = annualRateDecimal / 12;
-  if (r === 0) return principal / termMonths;
-  return principal * (r / (1 - Math.pow(1 + r, -termMonths)));
-}
-
-// -----------------------------
-// Date helpers (month inputs)
-// -----------------------------
-function parseMonthInput(value) {
-  if (!value || typeof value !== "string" || !value.includes("-")) return null;
-  const [y, m] = value.split("-").map((v) => Number(v));
-  if (!Number.isFinite(y) || !Number.isFinite(m)) return null;
-  return new Date(y, m - 1, 1);
-}
-function monthsBetween(startDate, endDate) {
-  if (!(startDate instanceof Date) || !(endDate instanceof Date)) return null;
-  const sy = startDate.getFullYear();
-  const sm = startDate.getMonth();
-  const ey = endDate.getFullYear();
-  const em = endDate.getMonth();
-  return (ey - sy) * 12 + (em - sm);
-}
-function yearsBetween(startDate, endDate) {
-  const m = monthsBetween(startDate, endDate);
-  if (m == null) return null;
-  return Math.max(0, m / 12);
-}
-function getTodayMonthStart() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1);
-}
-
-// -----------------------------
-// Constants
-// -----------------------------
-const YEARS = 30;
-const MONTHS = YEARS * 12;
 
 // -----------------------------
 // Inputs
 // -----------------------------
-function parseInputs() {
+function readInputs() {
   const required = {
-    homeValue: clampNumber($("homeValue").value),
-    loanBalance: clampNumber($("loanBalance").value),
-    monthlyRent: clampNumber($("monthlyRent").value),
-
+    homeValue: clampNumber($("homeValue").value, 0),
+    loanBalance: clampNumber($("loanBalance").value, 0),
+    monthlyRent: clampNumber($("monthlyRent").value, 0),
+    currRate: clampNumber($("currRate").value, 0),
+    loanEnd: parseMonthInput($("loanEnd").value),
+    taxesMonthly: clampNumber($("taxesMonthly").value, 0),
+    insMonthly: clampNumber($("insMonthly").value, 0),
     movedIn: parseMonthInput($("movedIn").value),
     movedOut: parseMonthInput($("movedOut").value),
-
-    currRate: clampNumber($("currRate").value),
-    loanEnd: parseMonthInput($("loanEnd").value),
-    taxesMonthly: clampNumber($("taxesMonthly").value),
-    insMonthly: clampNumber($("insMonthly").value),
   };
 
   const optional = {
-    saleClosingPct: clampNumber($("saleClosingPct").value, 6),
-    marketReturn: clampNumber($("marketReturn").value, 7),
-    homeAppreciation: clampNumber($("homeAppreciation").value, 3),
-    inflation: clampNumber($("inflation").value, 3),
-
-    vacancyPct: clampNumber($("vacancyPct").value, 5),
-    maintPct: clampNumber($("maintPct").value, 5),
-    capexPct: clampNumber($("capexPct").value, 5),
+    saleClosingPct: clampNumber($("saleClosingPct").value, 0),
+    marketReturn: clampNumber($("marketReturn").value, 0),
+    homeAppreciation: clampNumber($("homeAppreciation").value, 0),
+    inflation: clampNumber($("inflation").value, 0),
+    vacancyPct: clampNumber($("vacancyPct").value, 0),
+    maintPct: clampNumber($("maintPct").value, 0),
+    capexPct: clampNumber($("capexPct").value, 0),
     pmPct: clampNumber($("pmPct").value, 0),
-
     rentalTaxRate: clampNumber($("rentalTaxRate").value, 0),
-
-    capGainsRate: clampNumber($("capGainsRate").value, 15),
-
-    costBasis: $("costBasis").value.trim() === "" ? null : clampNumber($("costBasis").value),
-    overridePIAmount: $("overridePIAmount").value.trim() === "" ? null : clampNumber($("overridePIAmount").value),
+    capGainsRate: clampNumber($("capGainsRate").value, 0),
+    costBasis: $("costBasis").value === "" ? null : clampNumber($("costBasis").value, 0),
+    overridePIAmount: $("overridePIAmount").value === "" ? null : clampNumber($("overridePIAmount").value, 0),
   };
 
   return { required, optional };
 }
 
 function computeDerived(required) {
-  const yearsLived =
-    (required.movedIn && required.movedOut)
-      ? yearsBetween(required.movedIn, required.movedOut)
-      : null;
+  const now = new Date();
+  const nowMonth = { y: now.getFullYear(), m: now.getMonth() + 1 };
+  const loanEnd = required.loanEnd;
 
-  const today = getTodayMonthStart();
-  const monthsRemaining = (required.loanEnd) ? monthsBetween(today, required.loanEnd) : null;
+  let monthsRemaining = 0;
+  if (loanEnd) monthsRemaining = Math.max(0, monthsBetween(nowMonth, loanEnd));
 
-  return { yearsLived, monthsRemaining };
+  let yearsLived = 0;
+  if (required.movedIn && required.movedOut) {
+    const livedMonths = Math.max(0, monthsBetween(required.movedIn, required.movedOut));
+    yearsLived = livedMonths / 12;
+  }
+  return { nowMonth, monthsRemaining, yearsLived };
 }
 
-function validateInputs(inputs) {
-  const { required, optional } = inputs;
-  const derived = computeDerived(required);
-  const errors = [];
-
-  const reqPos = (name, val) => { if (!(val > 0)) errors.push(`${name} must be > 0`); };
-
-  reqPos("Home value", required.homeValue);
-  if (required.loanBalance < 0) errors.push("Remaining loan balance must be ≥ 0");
-  if (required.monthlyRent < 0) errors.push("Estimated monthly rent must be ≥ 0");
-
-  if (!required.movedIn) errors.push("Month/year moved in is required");
-  if (!required.movedOut) errors.push("Month/year moved out is required (can be a future planned date)");
-  if (derived.yearsLived == null) errors.push("Could not compute years lived from moved in/out dates");
-  if (derived.yearsLived < 0) errors.push("Moved out date must be after moved in date");
-
-  reqPos("Current interest rate", required.currRate);
-  if (!required.loanEnd) errors.push("Month/year loan ends is required");
-  if (derived.monthsRemaining == null) errors.push("Could not compute months remaining from loan end date");
-  if (derived.monthsRemaining <= 0) errors.push("Loan end date must be in the future (at least 1 month from now)");
-
-  if (required.taxesMonthly < 0) errors.push("Monthly property taxes must be ≥ 0");
-  if (required.insMonthly < 0) errors.push("Monthly insurance must be ≥ 0");
-
-  if (optional.overridePIAmount != null && !(optional.overridePIAmount > 0)) {
-    errors.push("Override P&I must be > 0 if provided");
-  }
-
-  return { errors, derived };
+function computeSaleTax(salePrice, derived, optional) {
+  // Simplified rule:
+  // If lived >= 2 years => 0.
+  // If lived < 2 years and cost basis provided => cap gains tax on max(0, salePrice - costBasis) at capGainsRate.
+  if ((derived.yearsLived ?? 0) >= 2) return 0;
+  if (optional.costBasis == null) return 0;
+  const gain = Math.max(0, salePrice - optional.costBasis);
+  return gain * pctToDecimal(optional.capGainsRate);
 }
 
 // -----------------------------
@@ -171,13 +117,12 @@ function validateInputs(inputs) {
 function runSimulation(inputs, derived) {
   const { required, optional } = inputs;
 
-  const marketAnnual = pctToDecimal(optional.marketReturn);
-  const homeAppAnnual = pctToDecimal(optional.homeAppreciation);
-  const inflAnnual = pctToDecimal(optional.inflation);
+  const YEARS = 30;
+  const MONTHS = YEARS * 12;
 
-  const marketM = annualToMonthlyRate(marketAnnual);
-  const homeAppM = annualToMonthlyRate(homeAppAnnual);
-  const inflM = annualToMonthlyRate(inflAnnual);
+  const marketM = annualToMonthlyRate(pctToDecimal(optional.marketReturn));
+  const homeAppM = annualToMonthlyRate(pctToDecimal(optional.homeAppreciation));
+  const inflM = annualToMonthlyRate(pctToDecimal(optional.inflation));
 
   const vacancy = pctToDecimal(optional.vacancyPct);
   const maint = pctToDecimal(optional.maintPct);
@@ -186,218 +131,139 @@ function runSimulation(inputs, derived) {
   const rentalTax = pctToDecimal(optional.rentalTaxRate);
 
   const saleClose = pctToDecimal(optional.saleClosingPct);
-  const capGainsRate = pctToDecimal(optional.capGainsRate);
 
+  // Current mortgage payment (or override)
   const currRateAnnual = pctToDecimal(required.currRate);
-  const currTermMonths = Math.round(derived.monthsRemaining);
-  const currPIComputed = mortgagePayment(required.loanBalance, currRateAnnual, currTermMonths);
-  const currPIForCashFlow = (optional.overridePIAmount != null) ? optional.overridePIAmount : currPIComputed;
+  const nMonths = Math.max(0, Math.round(derived.monthsRemaining));
+  const piComputed = mortgagePayment(required.loanBalance, currRateAnnual, nMonths);
+  const piCash = (optional.overridePIAmount != null) ? optional.overridePIAmount : piComputed;
 
-  const baselineEquity = required.homeValue - required.loanBalance;
-  const baselineNW = baselineEquity;
+  // Scenario state
+  const sell = { invest: 0, avoidedNegCF: 0 };
+  const rent = { homeValue: required.homeValue, loanBal: required.loanBalance, invest: 0 };
 
-  function computeSaleTax(salePrice) {
-    const yearsLived = derived.yearsLived ?? 0;
-    if (yearsLived >= 2) return 0;
-    if (optional.costBasis == null) return 0;
-    const gain = Math.max(0, salePrice - optional.costBasis);
-    return gain * capGainsRate;
+  // SELL transaction at month 0
+  {
+    const salePrice = required.homeValue;
+    const closingCosts = salePrice * saleClose;
+    const saleTax = computeSaleTax(salePrice, derived, optional);
+    const netAfter = salePrice - closingCosts - saleTax;
+    const payoff = Math.min(netAfter, required.loanBalance);
+    const proceeds = netAfter - payoff;
+    sell.invest = Math.max(0, proceeds); // if proceeds negative, clamp to 0 (simplification)
   }
 
-  function makeScenario(kind) {
-    return {
-      kind,
-      homeValue: required.homeValue,
-      loanBal: required.loanBalance,
-      invest: 0,   // stocks / liquid investments
-      oop: 0       // out-of-pocket drag (negative CF)
-    };
-  }
-
-  const sell = makeScenario("SELL");
-  const rent = makeScenario("RENT");
-
+  // Series (yearly)
   const series = {
-    years: Array.from({ length: YEARS + 1 }, (_, i) => i),
-
-    // totals
-    sellNW: Array(YEARS + 1).fill(0),
-    rentNW: Array(YEARS + 1).fill(0),
-
-    // breakdowns
     sellStocks: Array(YEARS + 1).fill(0),
     sellEquity: Array(YEARS + 1).fill(0),
-
+    sellNW: Array(YEARS + 1).fill(0),
     rentStocks: Array(YEARS + 1).fill(0),
     rentEquity: Array(YEARS + 1).fill(0),
+    rentNW: Array(YEARS + 1).fill(0),
+    avoidedNegCF: Array(YEARS + 1).fill(0),
+    meta: {
+      currPIComputed: piComputed,
+    }
   };
 
-  // Year 0 (equal starting net worth)
-  series.sellNW[0] = baselineNW;
-  series.rentNW[0] = baselineNW;
+  // Year 0 snapshot
+  series.sellStocks[0] = sell.invest;
+  series.sellEquity[0] = 0;
+  series.sellNW[0] = sell.invest;
 
-  series.sellStocks[0] = 0;
-  series.sellEquity[0] = baselineNW;
+  series.rentStocks[0] = rent.invest;
+  series.rentEquity[0] = Math.max(0, rent.homeValue - rent.loanBal);
+  series.rentNW[0] = series.rentStocks[0] + series.rentEquity[0];
+  series.avoidedNegCF[0] = 0;
 
-  series.rentStocks[0] = 0;
-  series.rentEquity[0] = baselineNW;
-
-  // SELL transaction at start of Month 1
-  {
-    const salePrice = sell.homeValue;
-    const saleClosingCosts = salePrice * saleClose;
-    const saleTax = computeSaleTax(salePrice);
-    const netAfterCloseTax = salePrice - saleClosingCosts - saleTax;
-
-    const payoff = Math.min(netAfterCloseTax, sell.loanBal);
-    const remainingProceeds = netAfterCloseTax - payoff;
-
-    sell.loanBal = 0;
-    sell.homeValue = 0;
-
-    if (remainingProceeds >= 0) sell.invest += remainingProceeds;
-    else sell.oop += remainingProceeds; // negative
-  }
-
-  // Net worth “hit” due to transaction costs (nearest $1K)
-  const sellNWAfterTransaction = sell.invest + sell.oop;
-  const sellTransactionHit = roundTo1K(baselineNW - sellNWAfterTransaction);
-
-  // Track rents + costs inflated monthly
-  let rentIncome = required.monthlyRent;
-  let taxes = required.taxesMonthly;
-  let ins = required.insMonthly;
-
+  // Monthly loop
   for (let m = 1; m <= MONTHS; m++) {
-    rentIncome *= (1 + inflM);
-    taxes *= (1 + inflM);
-    ins *= (1 + inflM);
-
-    // Appreciate home value (RENT scenario only)
-    rent.homeValue *= (1 + homeAppM);
-
-    // Grow investment accounts
+    // Grow investments monthly
     sell.invest *= (1 + marketM);
     rent.invest *= (1 + marketM);
 
-    // RENT scenario monthly cash flow
-    {
-      const opCosts = rentIncome * (vacancy + maint + capex + pm);
+    // RENT: home appreciation
+    rent.homeValue *= (1 + homeAppM);
 
-      let piCash = 0;
-      if (rent.loanBal > 0) {
-        piCash = currPIForCashFlow;
+    // RENT: mortgage amortization (while loan remaining)
+    let interest = 0;
+    let principalPaid = 0;
+    if (rent.loanBal > 0 && piCash > 0) {
+      interest = rent.loanBal * (currRateAnnual / 12);
+      principalPaid = Math.max(0, piCash - interest);
+      principalPaid = Math.min(principalPaid, rent.loanBal);
+      rent.loanBal -= principalPaid;
+    }
 
-        const interest = rent.loanBal * (currRateAnnual / 12);
-        const principalPaid = Math.max(0, currPIComputed - interest);
-        rent.loanBal = Math.max(0, rent.loanBal - principalPaid);
-      }
+    // RENT: cash flow
+    const rentGross = required.monthlyRent * Math.pow(1 + inflM, m);
+    const effectiveRent = rentGross * (1 - vacancy);
 
-      let net = rentIncome - opCosts - piCash - taxes - ins;
-      if (net > 0 && rentalTax > 0) net *= (1 - rentalTax);
+    // Operating costs as % of rentGross (simplified)
+    const opCosts = rentGross * (maint + capex + pm);
+    const taxes = required.taxesMonthly * Math.pow(1 + inflM, m);
+    const ins = required.insMonthly * Math.pow(1 + inflM, m);
 
-      if (net >= 0) rent.invest += net;
-      else rent.oop += net;
+    let net = effectiveRent - opCosts - piCash - taxes - ins;
+
+    // Apply rental tax to positive net only (simplified)
+    if (net > 0 && rentalTax > 0) net *= (1 - rentalTax);
+
+    if (net >= 0) {
+      rent.invest += net;
+    } else {
+      const avoided = Math.abs(net);
+      sell.invest += avoided;
+      sell.avoidedNegCF += avoided;
     }
 
     // Year-end snapshots
     if (m % 12 === 0) {
       const y = m / 12;
 
-      // SELL (all in stocks; no home equity)
-      series.sellStocks[y] = sell.invest + sell.oop;
+      series.sellStocks[y] = Math.max(0, sell.invest);
       series.sellEquity[y] = 0;
-      series.sellNW[y] = series.sellStocks[y] + series.sellEquity[y];
+      series.sellNW[y] = series.sellStocks[y];
 
-      // RENT (split between stocks + home equity)
-      const equity = (rent.homeValue - rent.loanBal);
-      const stocks = rent.invest + rent.oop;
+      series.rentStocks[y] = Math.max(0, rent.invest); // stocks cannot be < 0
+      series.rentEquity[y] = Math.max(0, rent.homeValue - rent.loanBal);
+      series.rentNW[y] = series.rentStocks[y] + series.rentEquity[y];
 
-      series.rentEquity[y] = equity;
-      series.rentStocks[y] = stocks;
-      series.rentNW[y] = equity + stocks;
+      series.avoidedNegCF[y] = sell.avoidedNegCF;
     }
   }
 
-  const taxLine = (derived.yearsLived ?? 0) >= 2
-    ? "Sale tax: assumed 0% capital gains tax because time in home ≥ 2 years (simplified rule)."
-    : (optional.costBasis == null
-      ? "Sale tax: time in home < 2 years, but cost basis blank ⇒ assumes no capital gain (simplified rule)."
-      : `Sale tax: time in home < 2 years ⇒ applies ${optional.capGainsRate.toFixed(1)}% to (sale price − cost basis).`);
-
-  return {
-    series,
-    meta: {
-      baselineNW,
-      yearsLived: derived.yearsLived,
-      currPIComputed,
-      currPIForCashFlow,
-      sellTransactionHit,
-      taxLine
-    }
-  };
+  return series;
 }
 
 // -----------------------------
-// Winners + rendering
+// Rendering
 // -----------------------------
 let chart = null;
-let lastResult = null;
 
-function labelScenario(key) {
-  if (key === "sell") return "SELL";
-  if (key === "rent") return "RENT";
-  return "—";
+function renderWinner(series) {
+  const sell30 = series.sellNW[30];
+  const rent30 = series.rentNW[30];
+  const winner = sell30 >= rent30 ? "SELL" : "RENT";
+  $("netWorthWinner").textContent = winner;
 }
 
-function pickWinnerAtYear(series, y) {
-  const vals = [
-    { key: "sell", v: series.sellNW[y] },
-    { key: "rent", v: series.rentNW[y] },
-  ].slice().sort((a, b) => b.v - a.v);
+function renderSummary(series) {
+  const el = $("resultsSummary");
+  const sell30 = series.sellNW[30];
+  const rent30 = series.rentNW[30];
 
-  return { top: vals[0], bottom: vals[1] };
-}
+  const delta = sell30 - rent30;
+  const sign = delta >= 0 ? "+" : "−";
+  const abs = Math.abs(delta);
 
-function renderChart(series) {
-  const ctx = $("nwChart").getContext("2d");
-  if (chart) chart.destroy();
+  const bullets = [
+    `<li>Year 30 net worth: <strong>SELL ${moneyAbbrev(sell30)}</strong> vs <strong>RENT ${moneyAbbrev(rent30)}</strong> (${sign}${moneyAbbrev(abs)} difference).</li>`,
+    `<li>SELL includes <strong>${moneyAbbrev(series.avoidedNegCF[30])}</strong> in <em>Avoided Negative Cash Flow</em> invested into stocks over time (see note below).</li>`
+  ];
 
-  chart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: series.years,
-      datasets: [
-        { label: "SELL", data: series.sellNW, tension: 0.25, pointRadius: 0, borderWidth: 2 },
-        { label: "RENT", data: series.rentNW, tension: 0.25, pointRadius: 0, borderWidth: 2 }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
-      plugins: {
-        tooltip: {
-          callbacks: {
-            title: (items) => `Year ${items[0].label}`,
-            label: (item) => `${item.dataset.label}: ${money(item.raw)}`
-          }
-        },
-        legend: { position: "top" }
-      },
-      scales: {
-        y: {
-          ticks: {
-            callback: (v) => {
-              const n = Number(v);
-              if (!Number.isFinite(n)) return "";
-              return "$" + (n / 1000).toFixed(0) + "k";
-            }
-          }
-        }
-      }
-    }
-  });
+  el.innerHTML = `<ul>${bullets.join("")}</ul>`;
 }
 
 function renderTable(series) {
@@ -406,8 +272,16 @@ function renderTable(series) {
   tbody.innerHTML = "";
 
   years.forEach((y) => {
-    const sellText = formatNetWorthBreakdown(series.sellStocks[y], series.sellEquity[y]);
-    const rentText = formatNetWorthBreakdown(series.rentStocks[y], series.rentEquity[y]);
+    const sellText = moneyBreakdown(
+      series.sellNW[y],
+      series.sellStocks[y],
+      series.sellEquity[y]
+    );
+    const rentText = moneyBreakdown(
+      series.rentNW[y],
+      series.rentStocks[y],
+      series.rentEquity[y]
+    );
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -419,175 +293,152 @@ function renderTable(series) {
   });
 }
 
-function renderResultsSummary(series, meta) {
-  const y = YEARS;
-  const nw = pickWinnerAtYear(series, y);
+function renderNotes(inputs, derived, series) {
+  const { required, optional } = inputs;
+  const note = $("resultsNotes");
 
-  const nwTop = labelScenario(nw.top.key);
-  const nwBottom = labelScenario(nw.bottom.key);
-
-  const ul = $("resultsSummary");
-  ul.innerHTML = "";
-
-  const li = (text) => {
-    const el = document.createElement("li");
-    el.textContent = text;
-    ul.appendChild(el);
-  };
-
-  li(`Net Worth: ${nwTop} results in your highest net worth in ${y} years, while ${nwBottom} resulted in your lowest net worth.`);
-  li(`SELL: Your net worth takes a ~${moneyKM(meta.sellTransactionHit)} hit due to total transaction costs.`);
-
-  const notes = $("resultsNotes");
-  notes.innerHTML = `
-    <div class="noteTitle">Additional details</div>
-    <div class="noteBody">
-      <strong>RENT net worth</strong> includes both stocks (your liquid investment account) and home equity (home value minus remaining loan balance).<br/>
-      <strong>SELL net worth</strong> is modeled as fully liquid (stocks) after sale proceeds (net of closing costs, simplified sale tax, and mortgage payoff) are invested in the market.<br/>
-      ${meta.taxLine}
-    </div>
-  `;
-}
-
-function renderAssumptionNote(meta, inputs) {
-  const { optional } = inputs;
-  const note = $("assumptionNote");
-
-  const piLine = (optional.overridePIAmount != null)
-    ? `Current P&I for cash flow: overridden to ${money(meta.currPIForCashFlow)} (payoff still uses computed payment ${money(meta.currPIComputed)}).`
-    : `Current P&I: computed as ${money(meta.currPIComputed)} from balance/rate/loan-end date.`;
+  const piText = (optional.overridePIAmount != null)
+    ? `Current P&I: overridden at ${money0(optional.overridePIAmount)} (computed payment ${money0(series.meta.currPIComputed)}).`
+    : `Current P&I: computed as ${money0(series.meta.currPIComputed)} from balance/rate/loan-end date.`;
 
   note.innerHTML = `
     <div class="muted">
       <strong>Key assumptions (editable in Optional Assumptions):</strong><br/>
       Market return: ${optional.marketReturn.toFixed(1)}% · Home appreciation: ${optional.homeAppreciation.toFixed(1)}% · Inflation/rent growth: ${optional.inflation.toFixed(1)}%<br/>
-      Rental costs: Vacancy ${optional.vacancyPct.toFixed(1)}%, Maint ${optional.maintPct.toFixed(1)}%, CapEx ${optional.capexPct.toFixed(1)}%, PM ${optional.pmPct.toFixed(1)}% · Rental tax rate: ${optional.rentalTaxRate.toFixed(1)}%<br/>
-      ${meta.taxLine}<br/>
-      ${piLine}
+      Rental costs: Vacancy ${optional.vacancyPct.toFixed(1)}%, Maint ${optional.maintPct.toFixed(1)}%, CapEx ${optional.capexPct.toFixed(1)}%, PM ${optional.pmPct.toFixed(1)}%, Rental tax ${optional.rentalTaxRate.toFixed(1)}%<br/>
+      Sale tax: simplified rule (if lived ≥ 2 years, assume 0% capital gains tax; if lived < 2 years, apply cap gains rate to (sale price − cost basis) if provided).<br/>
+      ${piText}<br/>
+      <em>Avoided Negative Cash Flow:</em> When RENT monthly cash flow is negative, this model assumes SELL avoids that cash outflow and the avoided amount is 100% invested in stocks (earning the market return). This is a simplifying assumption and not financial/tax advice.
     </div>
   `;
 }
 
-function buildCsv(series) {
-  const header = [
-    "Year",
-    "SELL_NetWorth",
-    "SELL_Stocks",
-    "SELL_HomeEquity",
-    "RENT_NetWorth",
-    "RENT_Stocks",
-    "RENT_HomeEquity"
-  ];
-  const rows = [header.join(",")];
+function renderChart(series) {
+  const ctx = $("nwChart").getContext("2d");
+  const labels = Array.from({ length: 31 }, (_, i) => i);
+  const sellData = labels.map((y) => series.sellNW[y]);
+  const rentData = labels.map((y) => series.rentNW[y]);
 
-  for (let y = 0; y <= YEARS; y++) {
-    rows.push([
-      y,
-      series.sellNW[y],
-      series.sellStocks[y],
-      series.sellEquity[y],
-      series.rentNW[y],
-      series.rentStocks[y],
-      series.rentEquity[y]
-    ].join(","));
+  if (typeof Chart === "undefined") return;
+
+  if (chart) {
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = sellData;
+    chart.data.datasets[1].data = rentData;
+    chart.update();
+    return;
   }
-  return rows.join("\n");
+
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "SELL", data: sellData, tension: 0.15 },
+        { label: "RENT", data: rentData, tension: 0.15 },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true } },
+      scales: {
+        y: {
+          ticks: {
+            callback: (v) => moneyAbbrev(v)
+          }
+        }
+      }
+    },
+  });
 }
 
-function downloadText(filename, text) {
-  const blob = new Blob([text], { type: "text/csv;charset=utf-8;" });
+// -----------------------------
+// CSV download
+// -----------------------------
+function downloadCsv(series) {
+  const headers = [
+    "Year",
+    "Sell_NetWorth",
+    "Sell_Stocks",
+    "Sell_HomeEquity",
+    "Rent_NetWorth",
+    "Rent_Stocks",
+    "Rent_HomeEquity",
+    "Avoided_Negative_Cash_Flow_Cumulative"
+  ];
+
+  const rows = [headers.join(",")];
+  for (let y = 0; y <= 30; y++) {
+    rows.push([
+      y,
+      Math.round(series.sellNW[y]),
+      Math.round(series.sellStocks[y]),
+      Math.round(series.sellEquity[y]),
+      Math.round(series.rentNW[y]),
+      Math.round(series.rentStocks[y]),
+      Math.round(series.rentEquity[y]),
+      Math.round(series.avoidedNegCF[y]),
+    ].join(","));
+  }
+
+  const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename;
+  a.download = "sell_vs_rent_net_worth.csv";
+  document.body.appendChild(a);
   a.click();
+  a.remove();
   URL.revokeObjectURL(url);
 }
 
 // -----------------------------
 // UI wiring
 // -----------------------------
-function setResultsVisible(visible) {
-  $("cardResults").classList.toggle("hidden", !visible);
-  $("cardSummary").classList.toggle("hidden", !visible);
-  $("cardTable").classList.toggle("hidden", !visible);
-}
-
-function wireOptionalAccordion() {
-  const btn = $("toggleOptional");
-  const body = $("optionalBody");
-
-  btn.addEventListener("click", () => {
-    const expanded = btn.getAttribute("aria-expanded") === "true";
-    btn.setAttribute("aria-expanded", expanded ? "false" : "true");
-    body.style.display = expanded ? "none" : "block";
-    btn.querySelector(".chev").textContent = expanded ? "▾" : "▴";
-  });
-
-  body.style.display = "none";
-}
-
-function run() {
-  const inputs = parseInputs();
-  const { errors, derived } = validateInputs(inputs);
-
-  if (errors.length) {
-    alert("Please fix:\n\n- " + errors.join("\n- "));
-    return;
-  }
-
-  const result = runSimulation(inputs, derived);
-  lastResult = { inputs, derived, result };
-
-  setResultsVisible(true);
-
-  // Net Worth Winner pill (Year 30) — label only
-  const nwWinner = pickWinnerAtYear(result.series, YEARS);
-  $("netWorthWinner").textContent = labelScenario(nwWinner.top.key);
-
-  renderChart(result.series);
-  renderResultsSummary(result.series, result.meta);
-  renderTable(result.series);
-  renderAssumptionNote(result.meta, inputs);
-
-  $("cardResults").scrollIntoView({ behavior: "smooth", block: "start" });
+function showResults() {
+  $("cardResults").classList.remove("hidden");
+  $("cardSummary").classList.remove("hidden");
+  $("cardTable").classList.remove("hidden");
 }
 
 function resetAll() {
-  [
-    "homeValue","loanBalance","monthlyRent",
-    "movedIn","movedOut","currRate","loanEnd",
-    "taxesMonthly","insMonthly"
-  ].forEach(id => { $(id).value = ""; });
-
-  $("overridePIAmount").value = "";
-
+  if (chart) { chart.destroy(); chart = null; }
+  $("cardResults").classList.add("hidden");
+  $("cardSummary").classList.add("hidden");
+  $("cardTable").classList.add("hidden");
   $("netWorthWinner").textContent = "—";
-  $("resultsSummary").innerHTML = "<li>—</li>";
-  $("resultsNotes").innerHTML = "";
+  $("resultsSummary").innerHTML = "<ul><li>—</li></ul>";
   $("summaryTable").querySelector("tbody").innerHTML = "";
-  $("assumptionNote").innerHTML = "";
+  $("resultsNotes").innerHTML = "";
+}
 
-  if (chart) chart.destroy();
-  chart = null;
-  lastResult = null;
+function toggleOptional() {
+  const wrap = $("optionalBody");
+  wrap.classList.toggle("hidden");
+}
 
-  setResultsVisible(false);
+function run() {
+  const inputs = readInputs();
+  const derived = computeDerived(inputs.required);
+  const series = runSimulation(inputs, derived);
+
+  renderWinner(series);
+  renderChart(series);
+  renderSummary(series);
+  renderTable(series);
+  renderNotes(inputs, derived, series);
+  showResults();
+
+  // Attach csv callback with latest series
+  $("btnCsv").onclick = () => downloadCsv(series);
 }
 
 function init() {
-  $("yearNow").textContent = new Date().getFullYear();
-
-  wireOptionalAccordion();
-  setResultsVisible(false);
-
   $("btnRun").addEventListener("click", run);
   $("btnReset").addEventListener("click", resetAll);
-  $("btnCsv").addEventListener("click", () => {
-    if (!lastResult) return alert("Run a calculation first.");
-    const csv = buildCsv(lastResult.result.series);
-    downloadText("sell-vs-rent-my-house-30y.csv", csv);
-  });
+  $("toggleOptional").addEventListener("click", toggleOptional);
+  resetAll();
 }
 
 document.addEventListener("DOMContentLoaded", init);

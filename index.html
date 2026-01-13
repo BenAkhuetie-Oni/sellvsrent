@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sell vs Rent My House Calculator</title>
-  <meta name="description" content="Compare SELL vs RENT for net worth over 30 years." />
+  <meta name="description" content="Compare SELL vs RENT for net worth over 30 years. Not financial/tax advice." />
 
   <!-- Google Analytics (reused from your template) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R1KF7GYGF"></script>
@@ -26,14 +26,14 @@
         <div class="title">Sell vs Rent My House Calculator</div>
         <div class="subtitle">
           Made by
-          <a class="link" href="https://outdoorfinancialfreedom.com" target="_blank" rel="noopener">OutdoorFinancialFreedom.com</a>
+          <a class="link" href="https://outdoorfinancialfreedom.com/" target="_blank" rel="noopener">AIMadeMeWealthy.com</a>
           · 30-year projection · Not financial/tax advice
         </div>
       </div>
 
       <div class="topCta">
-        <a class="ctaLink" href="https://outdoorfinancialfreedom.com" target="_blank" rel="noopener">
-          Visit OutdoorFinancialFreedom.com →
+        <a class="ctaLink" href="https://outdoorfinancialfreedom.com/" target="_blank" rel="noopener">
+          Visit AIMadeMeWealthy.com →
         </a>
       </div>
     </div>
@@ -115,6 +115,17 @@
               If you want, you can override monthly P&amp;I for cash flow in Optional Assumptions.
             </div>
           </div>
+
+          <hr class="sep" />
+
+          <div class="grid2">
+            <label>
+            </label>
+
+            <label>
+              <small class="hint">We assume this same cash exists in all scenarios at Year 0 so starting net worth is equal.</small>
+            </label>
+          </div>
         </section>
 
         <!-- Optional assumptions -->
@@ -170,6 +181,18 @@
               <label>
                 Tax on positive rental cash flow (%)
                 <input id="rentalTaxRate" type="number" min="0" step="0.1" value="0.0" />
+              </label>
+
+              <label>
+              </label>
+
+              <label>
+              </label>
+
+              <label>
+                Non-Rental Income rate (withdrawal %, annual)
+                <input id="withdrawalRate" type="number" min="0" step="0.1" value="4.0" />
+                <small class="hint">Used for Non-Rental Income (rule-of-thumb).</small>
               </label>
 
               <label>
@@ -250,15 +273,15 @@
               <thead>
                 <tr>
                   <th>Year</th>
-                  <th class="groupHead">SELL</th>
-                  <th class="groupHead">RENT</th>
+                  <th>SELL</th>
+                  <th>RENT</th>
                 </tr>
               </thead>
               <tbody></tbody>
             </table>
           </div>
 
-          <div class="hintBlock" id="assumptionNote"></div>
+          <div class="noteBox" id="resultsNotes"></div>
         </section>
 
         <!-- Kit form card (only the form) -->
