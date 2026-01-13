@@ -254,6 +254,9 @@ input:focus{
   margin-top: 12px;
   display: none;
 }
+.accordionBody.open{
+  display: block;
+}
 
 /* Pills */
 .pillRow{
@@ -315,18 +318,15 @@ input:focus{
 .table{
   width:100%;
   border-collapse: collapse;
-  table-layout: fixed;
+  min-width: 780px;
 }
-.table col.yearCol{ width: 56px; }
-.table col.dataCol{ width: calc((100% - 56px)/2); }
 .table th, .table td{
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-bottom: 1px solid rgba(82,85,78,0.16);
   font-size: 12px;
-  vertical-align: top;
+  white-space: nowrap;
 }
 .table th{
-
   font-size: 11.5px;
   color: var(--muted);
   font-weight: 900;
@@ -394,17 +394,45 @@ input:focus{
 
 
 /* Accordion default (closed) */
-.accordionBody{
-  margin-top: 12px;
-  display: none;
-}
+.accordionBody{ display:none; }
+.accordion[aria-expanded="true"] + .accordionBody{ display:block; }
+
 /* Note box lists */
 .noteBox ul{ margin: 8px 0 0 18px; }
 .noteBox li{ margin: 4px 0; }
 
-.accordionBody.open{
-  display: block;
+
+/* Net worth table cell formatting */
+.nwCell{ line-height: 1.25; }
+.nwTotal{ font-size: 12px; }
+.nwParts{ font-size: 12px; }
+
+/* Make Net Worth Results table more compact and prevent clipping */
+.table{
+  width:100%;
+  border-collapse: collapse;
+  table-layout: auto;           /* allow columns to size to content */
+}
+.tableWrap{ overflow-x: auto; }
+.table th, .table td{
+  padding: 8px 10px;
+  vertical-align: top;
+}
+.table td{ white-space: normal; }
+.table td:not(:first-child){
+  word-break: break-word;
 }
 
-.table td:first-child, .table th:first-child{ white-space: nowrap; }
-.table td:not(:first-child){ white-space: normal; word-break: break-word; }
+/* Reduce wasted space in SELL/RENT columns */
+.table th:nth-child(2), .table td:nth-child(2),
+.table th:nth-child(3), .table td:nth-child(3){
+  width: 44%;
+}
+.table th:first-child, .table td:first-child{
+  width: 12%;
+  white-space: nowrap;
+}
+
+/* Kit */
+#kitCard h2{ margin-bottom: 10px; }
+.kitFallback{ margin-top: 10px; font-size: 12px; }
