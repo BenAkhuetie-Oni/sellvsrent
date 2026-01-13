@@ -36,10 +36,14 @@ function moneyAbbrev(n) {
   const sign = x < 0 ? "-" : "";
   if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`;
   return `${sign}$${Math.round(abs / 1000)}K`;
+  noteSummary.innerHTML = notesHtml;
+  noteTable.innerHTML = notesHtml;
 }
 function moneyBreakdown(total, stocks, equity) {
   // total displayed as K/M. stocks/equity rounded to nearest $1K
   return `<strong>${moneyAbbrev(total)}</strong> (${moneyAbbrev(stocks)} stocks, ${moneyAbbrev(equity)} home equity)`;
+  noteSummary.innerHTML = notesHtml;
+  noteTable.innerHTML = notesHtml;
 }
 
 function mortgagePayment(principal, annualRateDec, nMonths) {
@@ -162,7 +166,8 @@ function runSimulation(inputs, derived) {
     rentEquity: Array(YEARS + 1).fill(0),
     rentNW: Array(YEARS + 1).fill(0),
     avoidedNegCF: Array(YEARS + 1).fill(0),
-    rentNetAtYearStart: Array(YEARS + 1).fill(0),
+    rentNetAtYear0: 0,
+    rentNetFirstMonthOfYear: Array(YEARS + 1).fill(null),
     meta: {
       currPIComputed: piComputed,
     }
@@ -200,13 +205,13 @@ function runSimulation(inputs, derived) {
     }
 
     // RENT: cash flow
-    const rentGross = required.monthlyRent * Math.pow(1 + inflM, m);
+    const rentGross = required.monthlyRent * Math.pow(1 + inflM, m - 1);
     const effectiveRent = rentGross * (1 - vacancy);
 
     // Operating costs as % of rentGross (simplified)
     const opCosts = rentGross * (maint + capex + pm);
-    const taxes = required.taxesMonthly * Math.pow(1 + inflM, m);
-    const ins = required.insMonthly * Math.pow(1 + inflM, m);
+    const taxes = required.taxesMonthly * Math.pow(1 + inflM, m - 1);
+    const ins = required.insMonthly * Math.pow(1 + inflM, m - 1);
 
     let net = effectiveRent - opCosts - piCash - taxes - ins;
 
@@ -215,17 +220,21 @@ function runSimulation(inputs, derived) {
 
     // Track rental cash flow (for summary)
     rentNetCFTotal += net;
-    if (m % 12 === 0) {
-      const yStart = m / 12;
-      series.rentNetAtYearStart[yStart] = net;
-    }
 
-    if (net >= 0) {
+    // Store month-1 net as Year 0 value
+    if (m === 1) series.rentNetAtYear0 = net;
+
+    // Store the first month of each year (m=1,13,25,...) for break-even detection
+    const yearIndex = Math.floor((m - 1) / 12);
+    if ((m - 1) % 12 === 0) series.rentNetFirstMonthOfYear[yearIndex] = net;
+
+if (net >= 0) {
       rent.invest += net;
     } else {
       const avoided = Math.abs(net);
       sell.invest += avoided;
       sell.avoidedNegCF += avoided;
+      rent.invest = Math.max(0, rent.invest);
     }
 
     // Year-end snapshots
@@ -277,14 +286,15 @@ function renderSummary(series) {
   const diff = Math.abs(winnerVal - loserVal);
 
   // Rental cash flow summary
-  const netY0 = series.rentNetAtYearStart[0] ?? 0;
+  const netY0 = Number(series.rentNetAtYear0 ?? 0);
   const netTotal = Number(series.meta.rentNetCFTotal ?? 0);
 
   let breakEvenText = "";
   if (netY0 < 0) {
     let breakEvenYear = null;
-    for (let y = 0; y <= 30; y++) {
-      if ((series.rentNetAtYearStart[y] ?? 0) >= 0) { breakEvenYear = y; break; }
+    for (let y = 0; y <= 29; y++) {
+      const v = series.rentNetFirstMonthOfYear[y];
+      if (typeof v === "number" && v >= 0) { breakEvenYear = y; break; }
     }
     breakEvenText = breakEvenYear == null
       ? "does not break even by Year 30"
@@ -301,6 +311,8 @@ function renderSummary(series) {
     : `Rental Cash Flow: RENT results in positive cash flow (${netY0PerMonth}/month at Y0; Net Rental Cash Flow, Y0–Y30: ${netTotalText}). RENT assumes positive cash flow is invested in stocks.`;
 
   el.innerHTML = `<li>${nwBullet}</li><li>${cashFlowBullet}</li>`;
+  noteSummary.innerHTML = notesHtml;
+  noteTable.innerHTML = notesHtml;
 }
 
 function renderTable(series) {
@@ -332,7 +344,8 @@ function renderTable(series) {
 
 function renderNotes(inputs, derived, series) {
   const { optional } = inputs;
-  const note = $("resultsNotes");
+  const noteSummary = $("resultsNotesSummary");
+  const noteTable = $("resultsNotesTable");
 
   const piText = (optional.overridePIAmount != null)
     ? `Current P&I: overridden at ${money0(optional.overridePIAmount)} (computed payment ${money0(series.meta.currPIComputed)}).`
@@ -343,20 +356,22 @@ function renderNotes(inputs, derived, series) {
     `Home appreciation: ${optional.homeAppreciation.toFixed(1)}%`,
     `Inflation/rent growth: ${optional.inflation.toFixed(1)}%`,
     `Rental costs: Vacancy ${optional.vacancyPct.toFixed(1)}%, Maint ${optional.maintPct.toFixed(1)}%, CapEx ${optional.capexPct.toFixed(1)}%, PM ${optional.pmPct.toFixed(1)}%`,
-    `Rental tax on positive cash flow: ${optional.rentalTaxPct.toFixed(1)}%`,
-    `Sale closing costs: ${optional.sellClosingCostPct.toFixed(1)}%`,
+    `Rental tax on positive cash flow: ${optional.rentalTaxRate.toFixed(1)}%`,
+    `Sale closing costs: ${optional.saleClosingPct.toFixed(1)}%`,
     piText,
     `Avoided Negative Cash Flow: When RENT net cash flow is negative, we assume SELL avoids that outflow and invests the same amount in stocks at the market return.`
   ];
 
-  note.innerHTML = `
-    <div class="muted">
-      <strong>Key assumptions (editable in Optional Assumptions):</strong>
+  const notesHtml = `
+    <div>
+      <div class="noteTitle">Key assumptions (editable in Optional assumptions):</div><div class="noteBody">
       <ul>
         ${items.map((t) => `<li>${t}</li>`).join("")}
       </ul>
     </div>
   `;
+  noteSummary.innerHTML = notesHtml;
+  noteTable.innerHTML = notesHtml;
 }
 
 function renderChart(series) {
@@ -454,14 +469,24 @@ function resetAll() {
   $("cardSummary").classList.add("hidden");
   $("cardTable").classList.add("hidden");
   $("netWorthWinner").textContent = "—";
-  $("resultsSummary").innerHTML = "<ul><li>—</li></ul>";
+  $("resultsSummary").innerHTML = "<li>—</li>";
   $("summaryTable").querySelector("tbody").innerHTML = "";
   $("resultsNotes").innerHTML = "";
 }
 
-function toggleOptional() {
-  const wrap = $("optionalBody");
-  wrap.classList.toggle("hidden");
+function setOptionalOpen(isOpen){
+  const btn = $("toggleOptional");
+  const body = $("optionalBody");
+  const chev = btn.querySelector(".chev");
+  btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  body.classList.toggle("open", isOpen);
+  if (chev) chev.textContent = isOpen ? "▴" : "▾";
+}
+
+function toggleOptional(){
+  const btn = $("toggleOptional");
+  const isOpen = btn.getAttribute("aria-expanded") === "true";
+  setOptionalOpen(!isOpen);
 }
 
 function run() {
@@ -484,6 +509,9 @@ function init() {
   $("btnRun").addEventListener("click", run);
   $("btnReset").addEventListener("click", resetAll);
   $("toggleOptional").addEventListener("click", toggleOptional);
+  setOptionalOpen(false);
+  const yearEl = document.getElementById("yearNow");
+  if (yearEl) yearEl.textContent = String(new Date().getFullYear());
   resetAll();
 }
 

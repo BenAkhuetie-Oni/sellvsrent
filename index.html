@@ -130,7 +130,7 @@
 
         <!-- Optional assumptions -->
         <section class="card">
-          <button class="accordion" id="toggleOptional" aria-expanded="false">
+          <button class="accordion" id="toggleOptional" aria-expanded="false" type="button">
             <span>Optional assumptions</span>
             <span class="chev">▾</span>
           </button>
@@ -188,14 +188,7 @@
 
               <label>
               </label>
-
-              <label>
-                Non-Rental Income rate (withdrawal %, annual)
-                <input id="withdrawalRate" type="number" min="0" step="0.1" value="4.0" />
-                <small class="hint">Used for Non-Rental Income (rule-of-thumb).</small>
-              </label>
-
-              <label>
+<label>
                 If lived &lt; 2 years: cap gains tax rate (%)
                 <input id="capGainsRate" type="number" min="0" step="0.1" value="15.0" />
               </label>
@@ -237,6 +230,15 @@
       <!-- RIGHT COLUMN -->
       <div class="col">
 
+
+        <!-- Newsletter (Kit) -->
+        <section class="card">
+          <div class="kitWrap">
+            <script async data-uid="eeff810649" src="https://outdoorfinancialfreedom.kit.com/eeff810649/index.js"></script>
+          </div>
+        </section>
+
+
         <!-- Results (hidden until run) -->
         <section class="card hidden" id="cardResults">
           <h2>Results</h2>
@@ -261,7 +263,7 @@
             <li>—</li>
           </ul>
 
-          <div class="noteBox" id="resultsNotes"></div>
+          <div class="noteBox" id="resultsNotesSummary"></div>
         </section>
 
         <!-- Table card (hidden until run) -->
@@ -270,6 +272,11 @@
 
           <div class="tableWrap">
             <table class="table" id="summaryTable">
+              <colgroup>
+                <col class="yearCol" />
+                <col class="dataCol" />
+                <col class="dataCol" />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Year</th>
@@ -281,7 +288,7 @@
             </table>
           </div>
 
-          <div class="noteBox" id="resultsNotes"></div>
+          <div class="noteBox" id="resultsNotesTable"></div>
         </section>
 
         <!-- Kit form card (only the form) -->
