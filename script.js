@@ -1,4 +1,4 @@
-// Sell vs Rent Calculator (Outside Financial Freedom)
+// Sell vs Rent Calculator (Outdoor Financial Freedom)
 // Pure client-side model. Not financial/tax advice.
 
 const YEARS = 30;

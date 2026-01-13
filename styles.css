@@ -1,4 +1,4 @@
-/* Outside Financial Freedom — calculator styles */
+/* Outdoor Financial Freedom — calculator styles */
 :root{
   --bg:#e7e4db;
   --card:#ffffff;
@@ -172,4 +172,44 @@ input:focus{ border-color: rgba(36,76,42,0.65); box-shadow:0 0 0 4px rgba(36,76,
   .grid{ grid-template-columns: 1fr; }
   .pill{ margin-top:10px; }
   .top .wrap{ display:block; }
+}
+
+
+/* --- Net Worth Results table: tighter + no cutoff --- */
+.tableWrap{ overflow-x: hidden; } /* wrap instead of scroll */
+.table{
+  width:100%;
+  border-collapse: collapse;
+  table-layout: auto;   /* natural sizing */
+}
+.table th, .table td{
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.table th:first-child, .table td:first-child{
+  width: 44px;
+  white-space: nowrap;
+}
+.table th:nth-child(2), .table td:nth-child(2),
+.table th:nth-child(3), .table td:nth-child(3){
+  width: calc((100% - 44px) / 2);
+  max-width: 0;         /* allow wrapping */
+}
+.table td:not(:first-child){
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.nwCell{ min-width: 0; }
+.nwParts{ overflow-wrap:anywhere; }
+
+/* On narrow screens, stack cells to guarantee visibility */
+@media (max-width: 520px){
+  .table thead{ display:none; }
+  .table, .table tbody, .table tr, .table td{ display:block; width:100%; }
+  .table tr{ border-bottom: 1px solid rgba(82,85,78,0.16); padding: 8px 0; }
+  .table td{ border-bottom:none; padding: 6px 0; }
+  .table td:first-child{ font-weight: 900; }
+  .table td:nth-child(2)::before{ content:"SELL"; display:block; font-weight:900; color:#313a31; margin-bottom:2px; }
+  .table td:nth-child(3)::before{ content:"RENT"; display:block; font-weight:900; color:#313a31; margin-bottom:2px; }
 }
