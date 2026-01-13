@@ -250,7 +250,13 @@ input:focus{
 }
 .accordion:hover{ background:#f6f6ef; }
 .chev{ color: var(--muted); }
-.accordionBody{ margin-top: 12px; }
+.accordionBody{
+  margin-top: 12px;
+  display: none;
+}
+.accordionBody.open{
+  display: block;
+}
 
 /* Pills */
 .pillRow{
