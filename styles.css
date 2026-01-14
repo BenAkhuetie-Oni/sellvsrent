@@ -20,13 +20,13 @@ body {
   color: var(--text);
 }
 
-h1, h2, h3 {
-  margin: 0 0 10px 0;
-}
-
 a {
   color: var(--green);
   text-decoration: none;
+}
+
+h1, h2, h3 {
+  margin: 0 0 8px 0;
 }
 
 .wrap {
@@ -56,8 +56,8 @@ a {
   padding: 10px 14px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  font-weight: 600;
   background: var(--tan);
+  font-weight: 600;
 }
 
 .grid {
@@ -140,6 +140,7 @@ input::placeholder {
 
 .accordion {
   width: 100%;
+  text-align: left;
   padding: 12px;
   border-radius: 12px;
   border: 1px solid var(--border);
@@ -172,6 +173,16 @@ input::placeholder {
 
 .table th {
   font-weight: 700;
+}
+
+.noteBox {
+  margin-top: 14px;
+  font-size: 12px;
+}
+
+.noteTitle {
+  font-weight: 700;
+  margin-bottom: 6px;
 }
 
 .foot {
