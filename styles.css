@@ -1,11 +1,12 @@
 :root {
-  --bg: #f8fafc;
+  --green: #2f6f4e;
+  --green-dark: #24583e;
+  --tan: #f5f2eb;
+  --border: #d6d3cb;
+  --text: #1f2937;
+  --muted: #6b7280;
   --card: #ffffff;
-  --border: #d1d5db;
-  --text: #0f172a;
-  --muted: #64748b;
-  --green: #166534;
-  --accent: #e5e7eb;
+  --bg: #faf9f6;
 }
 
 * {
@@ -20,7 +21,7 @@ body {
 }
 
 h1, h2, h3 {
-  margin: 0 0 8px 0;
+  margin: 0 0 10px 0;
 }
 
 a {
@@ -56,6 +57,7 @@ a {
   border-radius: 999px;
   border: 1px solid var(--border);
   font-weight: 600;
+  background: var(--tan);
 }
 
 .grid {
@@ -132,12 +134,16 @@ input::placeholder {
   border: none;
 }
 
+.btn.primary:hover {
+  background: var(--green-dark);
+}
+
 .accordion {
   width: 100%;
   padding: 12px;
   border-radius: 12px;
   border: 1px solid var(--border);
-  background: #f1f5f9;
+  background: var(--tan);
   font-weight: 700;
   cursor: pointer;
 }
@@ -151,9 +157,21 @@ input::placeholder {
   display: block;
 }
 
-.muted {
-  color: var(--muted);
-  font-size: 13px;
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.table th {
+  font-weight: 700;
 }
 
 .foot {
