@@ -1,123 +1,164 @@
-// Sell vs Rent Calculator (Outdoor Financial Freedom)
-// Pure client-side model. Not financial/tax advice.
+let chart;
 
-const YEARS = 30;
-let chart = null;
-
-const $ = id => document.getElementById(id);
-
-function numVal(id){
-  const el = $(id);
-  if(!el) return NaN;
-  const v = String(el.value ?? '').trim();
-  if(v === '') return NaN;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : NaN;
+function monthlyPI(balance, rate, months) {
+  const r = rate / 100 / 12;
+  return balance * r / (1 - Math.pow(1 + r, -months));
 }
 
-const pctToDec = p => (p ?? 0) / 100;
+function run() {
+  const years = 30;
 
-function moneyAbbrev(n){
-  const sign = n < 0 ? "-" : "";
-  const a = Math.abs(n);
-  if(a >= 1_000_000) return sign + "$" + (a/1_000_000).toFixed(1) + "M";
-  if(a >= 1_000) return sign + "$" + (a/1_000).toFixed(0) + "K";
-  return sign + "$" + a.toFixed(0);
-}
+  const homeValue = +homeValueInput();
+  const loanBalance = +loanBalanceInput();
+  const rent = +monthlyRentInput();
+  const rate = +interestRateInput();
+  const taxes = +monthlyTaxesInput();
+  const insurance = +monthlyInsuranceInput();
 
-function money(n){
-  const sign = n < 0 ? "-" : "";
-  return sign + "$" + Math.round(Math.abs(n)).toLocaleString();
-}
+  const marketReturn = +marketReturnInput() / 100;
+  const appreciation = +homeAppreciationInput() / 100;
+  const rentGrowth = +rentGrowthInput() / 100;
+  const saleCost = +saleCostsInput() / 100;
 
-function monthsBetween(a, b){
-  return (b.y - a.y) * 12 + (b.m - a.m);
-}
+  const vacancy = +vacancyRateInput() / 100;
+  const maint = +maintenanceRateInput() / 100;
+  const capex = +capexRateInput() / 100;
+  const pm = +pmRateInput() / 100;
+  const rentalTax = +rentalTaxRateInput() / 100;
 
-function parseMonthInput(val){
-  if(!val) return null;
-  const [y,m] = val.split("-").map(Number);
-  if(!Number.isFinite(y)||!Number.isFinite(m)) return null;
-  return {y,m};
-}
+  const monthsRemaining = 360;
+  const pi = overridePIInput() || monthlyPI(loanBalance, rate, monthsRemaining);
 
-function calcMonthlyPI(balance, aprPct, loanEndYM){
-  if(!loanEndYM || balance <= 0) return {pi:0, monthsRemaining:0};
-  const now = new Date();
-  const nowYM = {y: now.getFullYear(), m: now.getMonth()+1};
-  const monthsRemaining = Math.max(1, monthsBetween(nowYM, loanEndYM));
-  const r = (aprPct/100)/12;
-  if(r<=0) return {pi: balance/monthsRemaining, monthsRemaining};
-  const pi = balance*(r*Math.pow(1+r,monthsRemaining))/(Math.pow(1+r,monthsRemaining)-1);
-  return {pi, monthsRemaining};
-}
+  let sellNW = [];
+  let rentNW = [];
+  let rentCashFlows = [];
 
-function setOptionalOpen(isOpen){
-  const body = $("optionalBody");
-  const chev = document.querySelector(".chev");
-  body.classList.toggle("open", isOpen);
-  chev.textContent = isOpen ? "▴" : "▾";
-}
+  let sellInvest = (homeValue - loanBalance) * (1 - saleCost);
+  let rentInvest = sellInvest;
+  let homeEquity = homeValue - loanBalance;
 
-function toggleOptional(){
-  setOptionalOpen(!$("optionalBody").classList.contains("open"));
-}
+  for (let y = 0; y <= years; y++) {
+    sellNW.push(sellInvest);
+    rentNW.push(rentInvest + homeEquity);
 
-function yearsInHome(movedIn, movedOut){
-  if(!movedIn||!movedOut) return null;
-  return Math.max(0, monthsBetween(movedIn, movedOut)/12);
-}
+    if (y < years) {
+      sellInvest *= (1 + marketReturn);
 
-function computeSaleTax(homeValue, costBasis, yearsLived, capGainsRatePct){
-  if(yearsLived===null) return {tax:0, ruleText:"Sale tax: dates blank ⇒ assume no capital gain."};
-  if(yearsLived>=2) return {tax:0, ruleText:"Sale tax: ≥2 years ⇒ assume 0% capital gains."};
-  if(costBasis==null) return {tax:0, ruleText:"Sale tax: cost basis blank ⇒ assume no gain."};
-  const gain = Math.max(0, homeValue - costBasis);
-  const tax = gain*(capGainsRatePct/100);
-  return {tax, ruleText:`Sale tax: <2 years ⇒ ${capGainsRatePct}% applied to gain.`};
-}
+      const grossRent = rent * 12 * Math.pow(1 + rentGrowth, y);
+      const expenses = grossRent * (vacancy + maint + capex + pm) + (taxes + insurance + pi) * 12;
+      let cashFlow = grossRent - expenses;
 
-function getInputs(){
-  return {
-    homeValue: numVal("homeValue"),
-    loanBalance: numVal("loanBalance"),
-    rentMonthly: numVal("rentMonthly"),
-    currRate: numVal("currRate"),
-    loanEnd: parseMonthInput($("loanEnd").value),
-    taxesMonthly: numVal("taxesMonthly"),
-    insMonthly: numVal("insMonthly"),
-    movedIn: parseMonthInput($("movedIn").value),
-    movedOut: parseMonthInput($("movedOut").value),
-    optional: {
-      saleClosingPct: numVal("saleClosingPct"),
-      marketReturn: numVal("marketReturn"),
-      homeAppreciation: numVal("homeAppreciation"),
-      inflation: numVal("inflation"),
-      vacancyPct: numVal("vacancyPct"),
-      maintPct: numVal("maintPct"),
-      capexPct: numVal("capexPct"),
-      pmPct: numVal("pmPct"),
-      rentalTaxRate: numVal("rentalTaxRate"),
-      capGainsRate: numVal("capGainsRate"),
-      costBasis: numVal("costBasis"),
-      overridePI: numVal("overridePI")
+      rentCashFlows.push(cashFlow);
+
+      if (cashFlow > 0) {
+        rentInvest += cashFlow * (1 - rentalTax);
+      } else {
+        sellInvest += -cashFlow;
+      }
+
+      rentInvest *= (1 + marketReturn);
+      homeEquity *= (1 + appreciation);
     }
-  };
+  }
+
+  renderChart(sellNW, rentNW);
+  renderSummary(sellNW, rentNW, rentCashFlows);
+  renderTable(sellNW, rentNW);
 }
 
-/* ==== YOUR ORIGINAL SIMULATION LOGIC CONTINUES HERE ====
-   (No math removed; same SELL vs RENT net worth arrays,
-    avoided negative CF logic, break-even year, etc.)
-   Render chart, summary bullets, and table exactly as before.
-*/
+function renderChart(sell, rent) {
+  if (chart) chart.destroy();
 
-function init(){
-  $("btnRun").addEventListener("click", run);
-  $("btnReset").addEventListener("click", resetAll);
-  $("btnCsv").addEventListener("click", downloadCSV);
-  $("toggleOptional").addEventListener("click", toggleOptional);
-  $("yearNow").textContent = new Date().getFullYear();
-  setOptionalOpen(false);
+  chart = new Chart(document.getElementById('chart'), {
+    type: 'line',
+    data: {
+      labels: sell.map((_, i) => i),
+      datasets: [
+        { label: 'SELL', data: sell, borderColor: '#2f6f4e' },
+        { label: 'RENT', data: rent, borderColor: '#e85d75' }
+      ]
+    },
+    options: {
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: $${Math.round(ctx.parsed.y / 1000)}K`
+          }
+        }
+      },
+      scales: {
+        y: {
+          ticks: {
+            callback: v => `$${v/1000}K`
+          }
+        }
+      }
+    }
+  });
 }
 
-document.addEventListener("DOMContentLoaded", init);
+function renderSummary(sell, rent, cashFlows) {
+  const y30Sell = sell[30];
+  const y30Rent = rent[30];
+  const winner = y30Sell > y30Rent ? 'SELL' : 'RENT';
+
+  document.getElementById('winnerBox').textContent =
+    `Net Worth Winner (Year 30): ${winner}`;
+
+  const bullets = document.getElementById('summaryBullets');
+  bullets.innerHTML = '';
+
+  bullets.innerHTML += `<li>Net Worth (Year 30): ${winner} ($${Math.round(Math.max(y30Sell,y30Rent)/1000)}K) results in a higher net worth vs. ${winner==='SELL'?'RENT':'SELL'} ($${Math.round(Math.min(y30Sell,y30Rent)/1000)}K).</li>`;
+
+  const firstCF = cashFlows[0] / 12;
+  if (firstCF < 0) {
+    const breakEven = cashFlows.findIndex(v => v > 0);
+    bullets.innerHTML += `<li>Rental Cash Flow: RENT results in negative cash flow (${Math.round(firstCF/1000)}K/month at Y0) until breaking even at Year ${breakEven}.</li>`;
+  } else {
+    bullets.innerHTML += `<li>Rental Cash Flow: RENT results in positive cash flow (+${Math.round(firstCF/1000)}K/month at Y0).</li>`;
+  }
+
+  document.getElementById('assumptionBullets').innerHTML = `
+    <li>Market return: ${marketReturnInput()}%</li>
+    <li>Home appreciation: ${homeAppreciationInput()}%</li>
+    <li>Rent growth: ${rentGrowthInput()}%</li>
+    <li>Sale closing costs: ${saleCostsInput()}%</li>
+  `;
+}
+
+function renderTable(sell, rent) {
+  const rows = [0,1,5,10,30];
+  const tbody = document.querySelector('#resultsTable tbody');
+  tbody.innerHTML = '';
+
+  rows.forEach(y => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${y}</td>
+        <td><strong>$${Math.round(sell[y]/1000)}K</strong> ($${Math.round(sell[y]/1000)}K stocks)</td>
+        <td><strong>$${Math.round(rent[y]/1000)}K</strong> ($${Math.round(rent[y]/1000)}K total)</td>
+      </tr>
+    `;
+  });
+}
+
+/* Helpers */
+const q = id => document.getElementById(id).value;
+const homeValueInput = () => q('homeValue');
+const loanBalanceInput = () => q('loanBalance');
+const monthlyRentInput = () => q('monthlyRent');
+const interestRateInput = () => q('interestRate');
+const monthlyTaxesInput = () => q('monthlyTaxes');
+const monthlyInsuranceInput = () => q('monthlyInsurance');
+const marketReturnInput = () => q('marketReturn');
+const homeAppreciationInput = () => q('homeAppreciation');
+const rentGrowthInput = () => q('rentGrowth');
+const saleCostsInput = () => q('saleCosts');
+const vacancyRateInput = () => q('vacancyRate');
+const maintenanceRateInput = () => q('maintenanceRate');
+const capexRateInput = () => q('capexRate');
+const pmRateInput = () => q('pmRate');
+const rentalTaxRateInput = () => q('rentalTaxRate');
+const overridePIInput = () => +q('overridePI') || 0;
+
+function resetAll() { location.reload(); }
