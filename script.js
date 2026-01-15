@@ -34,7 +34,6 @@ function run() {
 
   const mortgage = pmt(lb, rate, 360);
 
-  // --- YEAR 0 ---
   let sellStocks = hv - lb;
   let rentStocks = 0;
   let homeValue = hv;
@@ -49,6 +48,11 @@ function run() {
   let rentCash = rent0;
   let taxes = taxes0;
   let ins = ins0;
+
+  let breakEvenYear = null;
+  let netRentalCF = 0;
+
+  const y0CF = rentCash - mortgage - taxes - ins;
 
   for (let m = 1; m <= MONTHS; m++) {
     sellStocks *= 1 + mRate(market);
@@ -65,9 +69,14 @@ function run() {
     }
 
     const netCF = rentCash - mortgage - taxes - ins;
+    netRentalCF += netCF;
 
-    if (netCF > 0) rentStocks += netCF;
-    else sellStocks += -netCF;
+    if (netCF >= 0) {
+      rentStocks += netCF;
+      if (!breakEvenYear) breakEvenYear = Math.ceil(m / 12);
+    } else {
+      sellStocks += -netCF;
+    }
 
     if (m % 12 === 0) {
       const y = m / 12;
@@ -82,11 +91,18 @@ function run() {
   const sell30 = sell[30].stocks;
   const rent30 = rent[30].stocks + rent[30].equity;
 
+  const winner = sell30 > rent30 ? 'SELL' : 'RENT';
+  const loser = winner === 'SELL' ? 'RENT' : 'SELL';
+  const diff = Math.abs(sell30 - rent30);
+
+  const cashFlowLine =
+    y0CF < 0
+      ? `RENT results in negative cash flow (${fmt(y0CF)}/month at Y0) until breaking even at Year ${breakEvenYear} (Net Rental Cash Flow, Y0–Y30: ${fmt(netRentalCF)}). Negative cash flow is accounted for in SELL scenario as “Avoided Negative Cash Flow” that is invested in stocks.`
+      : `RENT results in positive cash flow (${fmt(y0CF)}/month at Y0; Net Rental Cash Flow, Y0–Y30: ${fmt(netRentalCF)}). RENT assumes positive cash flow is invested in stocks.`;
+
   $('resultsSummary').innerHTML = `
-    <li><strong>Net Worth (Year 30):</strong>
-      ${rent30 > sell30 ? 'RENT' : 'SELL'} wins —
-      ${fmt(Math.max(sell30, rent30))} vs ${fmt(Math.min(sell30, rent30))}
-    </li>
+    <li><strong>Net Worth (Year 30):</strong> ${winner} (${fmt(winner === 'SELL' ? sell30 : rent30)}) results in a higher net worth vs. ${loser} (${fmt(loser === 'SELL' ? sell30 : rent30)}) (+${fmt(diff)} difference)</li>
+    <li><strong>Rental Cash Flow:</strong> ${cashFlowLine}</li>
   `;
 
   const tbody = $('summaryTable');
@@ -96,12 +112,8 @@ function run() {
     tbody.insertAdjacentHTML('beforeend', `
       <tr>
         <td>${y}</td>
-        <td><strong>${fmt(sell[y].stocks)}</strong>
-          (${fmt(sell[y].stocks)} stocks)
-        </td>
-        <td><strong>${fmt(rent[y].stocks + rent[y].equity)}</strong>
-          (${fmt(rent[y].stocks)} stocks, ${fmt(rent[y].equity)} home equity)
-        </td>
+        <td><strong>${fmt(sell[y].stocks)}</strong><br>(${fmt(sell[y].stocks)} stocks)</td>
+        <td><strong>${fmt(rent[y].stocks + rent[y].equity)}</strong><br>(${fmt(rent[y].stocks)} stocks, ${fmt(rent[y].equity)} home equity)</td>
       </tr>
     `);
   });
@@ -109,26 +121,18 @@ function run() {
   $('assumptionNote').innerHTML = `
     <li>Market return: 7%</li>
     <li>Home appreciation: 3%</li>
-    <li>Inflation / rent growth: 3%</li>
+    <li>Inflation / rent growth: 3% annually</li>
+    <li>Rental costs: 5% vacancy, 5% maintenance, 5% CapEx, 0% management</li>
   `;
 
   if (chart) chart.destroy();
-
   chart = new Chart($('nwChart'), {
     type: 'line',
     data: {
       labels: Array.from({ length: 31 }, (_, i) => i),
       datasets: [
-        {
-          label: 'SELL',
-          data: Object.values(sell).map(v => v.stocks),
-          borderWidth: 2
-        },
-        {
-          label: 'RENT',
-          data: Object.values(rent).map(v => v.stocks + v.equity),
-          borderWidth: 2
-        }
+        { label: 'SELL', data: Object.values(sell).map(v => v.stocks), borderWidth: 2 },
+        { label: 'RENT', data: Object.values(rent).map(v => v.stocks + v.equity), borderWidth: 2 }
       ]
     },
     options: {
@@ -137,9 +141,7 @@ function run() {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         tooltip: {
-          callbacks: {
-            label: ctx => `${ctx.dataset.label}: ${fmt(ctx.raw)}`
-          }
+          callbacks: { label: c => `${c.dataset.label}: ${fmt(c.raw)}` }
         }
       }
     }
