@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Sell vs Rent Calculator</title>
+  <title>RV Financial Freedom – Sell vs Rent Calculator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Styles -->
   <link rel="stylesheet" href="styles.css" />
 
   <!-- Google Analytics -->
@@ -24,14 +23,12 @@
     <!-- HEADER -->
     <header class="header">
       <div class="brand">
-        <div>
-          <h1>Sell vs Rent Calculator</h1>
-          <p class="sub">Made by <strong>RV Financial Freedom</strong></p>
-        </div>
-        <a class="topCta" href="https://rvfinancialfreedom.com" target="_blank">
-          Visit RVFinancialFreedom.com
-        </a>
+        <h1>RV Financial Freedom</h1>
+        <p>Sell vs Rent Net Worth Calculator</p>
       </div>
+      <a class="topCta" href="https://rvfinancialfreedom.com" target="_blank">
+        Visit RVFinancialFreedom.com
+      </a>
     </header>
 
     <!-- MAIN GRID -->
@@ -39,68 +36,70 @@
 
       <!-- LEFT COLUMN -->
       <div class="col">
-
-        <!-- INPUTS -->
         <div class="card">
           <h2>Inputs</h2>
 
-          <label>Estimated home value ($)</label>
-          <input type="number" id="homeValue" placeholder="450000" />
+          <label>Estimated home sale price ($)</label>
+          <input id="homeValue" type="number" placeholder="600000" />
 
-          <label>Remaining loan balance ($)</label>
-          <input type="number" id="loanBalance" placeholder="400000" />
+          <label>Remaining mortgage balance ($)</label>
+          <input id="loanBalance" type="number" placeholder="400000" />
 
-          <label>Estimated monthly rent ($)</label>
-          <input type="number" id="monthlyRent" placeholder="3000" />
-
-          <label>Mortgage rate (%)</label>
-          <input type="number" step="0.01" id="mortgageRate" placeholder="6.75" />
-
-          <label>Monthly property taxes ($)</label>
-          <input type="number" id="monthlyTaxes" placeholder="400" />
-
-          <label>Monthly insurance ($)</label>
-          <input type="number" id="monthlyInsurance" placeholder="500" />
+          <label>Current mortgage rate (%)</label>
+          <input id="mortgageRate" type="number" placeholder="6.5" />
 
           <label>Loan end date</label>
-          <input type="month" id="loanEndDate" />
+          <input id="loanEndDate" type="month" />
 
-          <!-- OPTIONAL ASSUMPTIONS -->
-          <details class="accordion">
+          <label>Estimated monthly rent ($)</label>
+          <input id="monthlyRent" type="number" placeholder="3000" />
+
+          <label>Monthly property taxes ($)</label>
+          <input id="monthlyTaxes" type="number" placeholder="600" />
+
+          <label>Monthly insurance ($)</label>
+          <input id="monthlyInsurance" type="number" placeholder="250" />
+
+          <details>
             <summary>Optional assumptions</summary>
 
-            <label>Market return (%)</label>
-            <input type="number" step="0.1" id="marketReturn" placeholder="7" />
+            <label>Annual home appreciation (%)</label>
+            <input id="homeAppreciation" type="number" placeholder="3" />
 
-            <label>Home appreciation (%)</label>
-            <input type="number" step="0.1" id="homeAppreciation" placeholder="3" />
+            <label>Annual rent growth (%)</label>
+            <input id="rentGrowth" type="number" placeholder="3" />
 
-            <label>Rent growth / inflation (%)</label>
-            <input type="number" step="0.1" id="rentGrowth" placeholder="3" />
+            <label>Annual maintenance (% of home value)</label>
+            <input id="maintenanceRate" type="number" placeholder="1" />
 
-            <label>Vacancy (%)</label>
-            <input type="number" step="0.1" id="vacancyRate" placeholder="5" />
+            <label>Vacancy rate (%)</label>
+            <input id="vacancyRate" type="number" placeholder="5" />
 
-            <label>Maintenance (%)</label>
-            <input type="number" step="0.1" id="maintenanceRate" placeholder="5" />
+            <label>Property management (% of rent)</label>
+            <input id="managementRate" type="number" placeholder="0" />
 
-            <label>CapEx (%)</label>
-            <input type="number" step="0.1" id="capexRate" placeholder="5" />
+            <label>Selling costs (% of home value)</label>
+            <input id="sellingCosts" type="number" placeholder="6" />
 
-            <label>Management (%)</label>
-            <input type="number" step="0.1" id="managementRate" placeholder="0" />
+            <label>Stock market return (%)</label>
+            <input id="stockReturn" type="number" placeholder="7" />
           </details>
 
-          <div class="actions">
-            <button id="runBtn" class="primary">Run</button>
-            <button id="resetBtn">Reset</button>
-          </div>
+          <button onclick="runModel()">Run Calculator</button>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="col">
+
+        <div class="card">
+          <h2>Results Summary</h2>
+          <ul id="resultsSummary"></ul>
         </div>
 
-        <!-- NET WORTH TABLE -->
-        <div class="card hidden" id="netWorthCard">
+        <div class="card">
           <h2>Net Worth Results</h2>
-          <table id="netWorthTable">
+          <table id="resultsTable">
             <thead>
               <tr>
                 <th>Year</th>
@@ -110,34 +109,18 @@
             </thead>
             <tbody></tbody>
           </table>
-        </div>
 
-        <!-- ASSUMPTIONS -->
-        <div class="card hidden" id="assumptionsCard">
-          <h2>Key Assumptions</h2>
+          <h3>Key Assumptions</h3>
           <ul id="assumptionsList"></ul>
-        </div>
-
-      </div>
-
-      <!-- RIGHT COLUMN -->
-      <div class="col">
-
-        <!-- RESULTS SUMMARY -->
-        <div class="card hidden" id="resultsCard">
-          <h2>Results</h2>
-          <ul id="resultsSummary"></ul>
-
-          <div class="chartWrap">
-            <canvas id="netWorthChart"></canvas>
-          </div>
         </div>
 
       </div>
     </div>
   </div>
 
-  <!-- Script -->
+  <!-- ConvertKit -->
+  <script async data-uid="eeff810649" src="https://rvfinancialfreedom.kit.com/eeff810649/index.js"></script>
+
   <script src="script.js"></script>
 </body>
 </html>
