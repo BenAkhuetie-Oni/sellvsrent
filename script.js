@@ -9,9 +9,9 @@ const mRate = a => Math.pow(1 + a, 1 / 12) - 1;
 let chart;
 
 function fmt(n) {
-  const a = Math.abs(n);
-  if (a >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-  return Math.round(n / 1e3) + 'K';
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+  return '$' + Math.round(n / 1e3) + 'K';
 }
 
 function pmt(p, r, m) {
@@ -23,7 +23,6 @@ function run() {
   const hv = +$('homeValue').value;
   const lb = +$('loanBalance').value;
   const rent0 = +$('monthlyRent').value;
-
   const rate = pct($('currRate').value);
   const taxes0 = +$('taxesMonthly').value;
   const ins0 = +$('insMonthly').value;
@@ -41,8 +40,9 @@ function run() {
   const pm = pct($('pmPct').value);
   const close = pct($('saleClosingPct').value);
 
+  // Initial conditions (YEAR 0 identical)
   let sellStocks = hv * (1 - close) - lb;
-  let rentStocks = 0;
+  let rentStocks = sellStocks;
   let rentHome = hv;
   let rentLoan = lb;
 
@@ -50,15 +50,18 @@ function run() {
   let taxes = taxes0;
   let ins = ins0;
 
-  const sellNW = [];
-  const rentNW = [];
-  const sellSeries = [];
-  const rentSeries = [];
+  const sellByYear = {};
+  const rentByYear = {};
 
   let breakEvenYear = null;
   let netRentalCF = 0;
+
   const y0CashFlow =
     rent0 - rent0 * (vac + maint + cap + pm) - mortgage - taxes0 - ins0;
+
+  // Store YEAR 0
+  sellByYear[0] = { stocks: sellStocks, equity: 0 };
+  rentByYear[0] = { stocks: rentStocks, equity: rentHome - rentLoan };
 
   for (let m = 1; m <= MONTHS; m++) {
     sellStocks *= 1 + mRate(mkt);
@@ -88,39 +91,43 @@ function run() {
 
     if (m % 12 === 0) {
       const y = m / 12;
-      sellNW[y] = sellStocks;
-      rentNW[y] = rentStocks + (rentHome - rentLoan);
-      sellSeries.push(sellNW[y]);
-      rentSeries.push(rentNW[y]);
+      sellByYear[y] = { stocks: sellStocks, equity: 0 };
+      rentByYear[y] = { stocks: rentStocks, equity: rentHome - rentLoan };
     }
   }
 
   $('cardResults').classList.remove('hidden');
   $('cardTable').classList.remove('hidden');
 
-  const winner = sellNW[30] > rentNW[30] ? 'SELL' : 'RENT';
+  const sell30 = sellByYear[30].stocks;
+  const rent30 = rentByYear[30].stocks + rentByYear[30].equity;
+
+  const winner = sell30 > rent30 ? 'SELL' : 'RENT';
   const loser = winner === 'SELL' ? 'RENT' : 'SELL';
-  const diff = Math.abs(sellNW[30] - rentNW[30]);
+  const diff = Math.abs(sell30 - rent30);
 
   const cashFlowLine =
     y0CashFlow < 0
-      ? `RENT results in negative cash flow (${fmt(y0CashFlow)}/month at Y0) until breaking even at Year ${breakEvenYear} (Net Rental Cash Flow, Y0–Y30: ${fmt(netRentalCF)}). Negative cash flow is accounted for in SELL as “Avoided Negative Cash Flow” invested in stocks.`
+      ? `RENT results in negative cash flow (${fmt(y0CashFlow)}/month at Y0) until breaking even at Year ${breakEvenYear} (Net Rental Cash Flow, Y0–Y30: ${fmt(netRentalCF)}). Negative cash flow is accounted for in SELL scenario as “Avoided Negative Cash Flow” invested in stocks.`
       : `RENT results in positive cash flow (${fmt(y0CashFlow)}/month at Y0; Net Rental Cash Flow, Y0–Y30: ${fmt(netRentalCF)}). RENT assumes positive cash flow is invested in stocks.`;
 
   $('resultsSummary').innerHTML = `
-    <li><strong>Net Worth (Year 30):</strong> ${winner} (${fmt(winner === 'SELL' ? sellNW[30] : rentNW[30])}) results in a higher net worth vs. ${loser} (${fmt(loser === 'SELL' ? sellNW[30] : rentNW[30])}) (+${fmt(diff)} difference)</li>
+    <li><strong>Net Worth (Year 30):</strong> ${winner} (${fmt(winner === 'SELL' ? sell30 : rent30)}) results in a higher net worth vs. ${loser} (${fmt(loser === 'SELL' ? sell30 : rent30)}) (+${fmt(diff)} difference)</li>
     <li><strong>Rental Cash Flow:</strong> ${cashFlowLine}</li>
   `;
 
   const tbody = $('summaryTable').querySelector('tbody');
   tbody.innerHTML = '';
+
   [0, 1, 5, 10, 30].forEach(y => {
+    const s = sellByYear[y];
+    const r = rentByYear[y];
     tbody.insertAdjacentHTML(
       'beforeend',
       `<tr>
         <td>${y}</td>
-        <td><strong>${fmt(sellNW[y] || 0)}</strong> (${fmt(sellNW[y] || 0)} stocks)</td>
-        <td><strong>${fmt(rentNW[y] || 0)}</strong> (${fmt(rentStocks)} stocks, ${fmt(rentHome - rentLoan)} home equity)</td>
+        <td><strong>${fmt(s.stocks)}</strong> (${fmt(s.stocks)} stocks)</td>
+        <td><strong>${fmt(r.stocks + r.equity)}</strong> (${fmt(r.stocks)} stocks, ${fmt(r.equity)} home equity)</td>
       </tr>`
     );
   });
@@ -135,10 +142,18 @@ function run() {
   chart = new Chart($('nwChart'), {
     type: 'line',
     data: {
-      labels: Array.from({ length: 30 }, (_, i) => i + 1),
+      labels: Array.from({ length: 31 }, (_, i) => i),
       datasets: [
-        { label: 'SELL', data: sellSeries, borderWidth: 2 },
-        { label: 'RENT', data: rentSeries, borderWidth: 2 }
+        {
+          label: 'SELL',
+          data: Object.values(sellByYear).map(v => v.stocks),
+          borderWidth: 2
+        },
+        {
+          label: 'RENT',
+          data: Object.values(rentByYear).map(v => v.stocks + v.equity),
+          borderWidth: 2
+        }
       ]
     }
   });

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>RV Financial Freedom – Sell vs Rent Calculator</title>
 
-  <!-- Google Analytics (unchanged) -->
+  <!-- Google Analytics (UNCHANGED) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R1KF7GYGF"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -19,135 +19,152 @@
 </head>
 
 <body>
+
 <header class="wrap header">
-  <div>
-    <div class="title">Sell vs Rent Calculator</div>
-    <div class="subtitle">
-      Made by <a href="https://rvfinancialfreedom.com" target="_blank">RV Financial Freedom</a>
+  <div class="brand">
+    <div class="brandText">
+      <div class="title">Sell vs Rent Calculator</div>
+      <div class="subtitle">
+        Made by <a class="link" href="https://rvfinancialfreedom.com" target="_blank">RV Financial Freedom</a>
+      </div>
     </div>
+    <a class="ctaLink" href="https://rvfinancialfreedom.com" target="_blank">
+      Visit RVFinancialFreedom.com
+    </a>
   </div>
 </header>
 
 <main class="wrap main">
-<div class="grid">
+  <div class="grid">
 
-<div class="col">
-<section class="card">
-<h2>Inputs</h2>
-<div class="grid2">
-<label>Estimated home sale price ($)
-  <input id="homeValue" type="number">
-</label>
+    <!-- LEFT -->
+    <div class="col">
 
-<label>Remaining loan balance ($)
-  <input id="loanBalance" type="number">
-</label>
+      <section class="card">
+        <h2>Inputs</h2>
+        <div class="grid2">
 
-<label>Estimated monthly rent ($)
-  <input id="monthlyRent" type="number">
-</label>
+          <label>Estimated home sale price ($)
+            <input id="homeValue" type="number">
+          </label>
 
-<label></label>
+          <label>Remaining loan balance ($)
+            <input id="loanBalance" type="number">
+          </label>
 
-<label>Current mortgage rate (%)
-  <input id="currRate" type="number">
-</label>
+          <label>Estimated monthly rent ($)
+            <input id="monthlyRent" type="number">
+          </label>
 
-<label>Loan end date
-  <input id="loanEnd" type="month">
-</label>
+          <label></label>
 
-<label>Monthly property taxes ($)
-  <input id="taxesMonthly" type="number">
-</label>
+          <label>Current mortgage rate (%)
+            <input id="currRate" type="number">
+          </label>
 
-<label>Monthly insurance ($)
-  <input id="insMonthly" type="number">
-</label>
-</div>
-</section>
+          <label>Loan end date
+            <input id="loanEnd" type="month">
+          </label>
 
-<section class="card">
-<button class="accordion" id="toggleOptional">Optional assumptions</button>
-<div class="accordionBody" id="optionalBody">
-<div class="grid2">
-<label>Market return (%)
-  <input id="marketReturn" value="7">
-</label>
+          <label>Monthly property taxes ($)
+            <input id="taxesMonthly" type="number">
+          </label>
 
-<label>Home appreciation (%)
-  <input id="homeAppreciation" value="3">
-</label>
+          <label>Monthly insurance ($)
+            <input id="insMonthly" type="number">
+          </label>
 
-<label>Inflation / rent growth (%)
-  <input id="inflation" value="3">
-</label>
+        </div>
+      </section>
 
-<label>Vacancy (% of rent)
-  <input id="vacancyPct" value="5">
-</label>
+      <section class="card">
+        <button class="accordion" id="toggleOptional">Optional assumptions</button>
+        <div class="accordionBody" id="optionalBody">
+          <div class="grid2">
 
-<label>Maintenance (% of rent)
-  <input id="maintPct" value="5">
-</label>
+            <label>Market return (%)
+              <input id="marketReturn" value="7">
+            </label>
 
-<label>CapEx (% of rent)
-  <input id="capexPct" value="5">
-</label>
+            <label>Home appreciation (%)
+              <input id="homeAppreciation" value="3">
+            </label>
 
-<label>Property management (% of rent)
-  <input id="pmPct" value="0">
-</label>
+            <label>Inflation / rent growth (%)
+              <input id="inflation" value="3">
+            </label>
 
-<label>Sale closing costs (% of home value)
-  <input id="saleClosingPct" value="6">
-</label>
-</div>
-</div>
-</section>
+            <label>Vacancy (% of rent)
+              <input id="vacancyPct" value="5">
+            </label>
 
-<div class="row">
-<button class="btn primary" id="btnRun">Run</button>
-<button class="btn" id="btnReset">Reset</button>
-</div>
-</div>
+            <label>Maintenance (% of rent)
+              <input id="maintPct" value="5">
+            </label>
 
-<div class="col">
+            <label>CapEx (% of rent)
+              <input id="capexPct" value="5">
+            </label>
 
-<section class="card hidden" id="cardResults">
-<h2>Results</h2>
-<ul class="bullets" id="resultsSummary"></ul>
-<canvas id="nwChart" height="140"></canvas>
-</section>
+            <label>Property management (% of rent)
+              <input id="pmPct" value="0">
+            </label>
 
-<section class="card hidden" id="cardTable">
-<h2>Net Worth Results</h2>
+            <label>Sale closing costs (% of home value)
+              <input id="saleClosingPct" value="6">
+            </label>
 
-<div class="tableWrap">
-<table class="table tight" id="summaryTable">
-<thead>
-<tr>
-  <th>Year</th>
-  <th>SELL</th>
-  <th>RENT</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
-</div>
+          </div>
+        </div>
+      </section>
 
-<div class="assumptions">
-  <strong>Key Assumptions</strong>
-  <ul id="assumptionNote"></ul>
-</div>
-</section>
+      <div class="row">
+        <button class="btn primary" id="btnRun">Run</button>
+        <button class="btn" id="btnReset">Reset</button>
+      </div>
 
-<section class="card">
-<script async data-uid="eeff810649" src="https://rvfinancialfreedom.kit.com/eeff810649/index.js"></script>
-</section>
+    </div>
 
-</div>
-</div>
+    <!-- RIGHT -->
+    <div class="col">
+
+      <section class="card hidden" id="cardResults">
+        <h2>Results</h2>
+        <ul class="bullets" id="resultsSummary"></ul>
+        <div class="chartWrap">
+          <canvas id="nwChart"></canvas>
+        </div>
+      </section>
+
+      <section class="card hidden" id="cardTable">
+        <h2>Net Worth Results</h2>
+
+        <div class="tableWrap">
+          <table class="table tight" id="summaryTable">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>SELL</th>
+                <th>RENT</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="assumptions">
+          <strong>Key Assumptions</strong>
+          <ul id="assumptionNote"></ul>
+        </div>
+      </section>
+
+      <section class="card kitWrap">
+        <script async data-uid="eeff810649" src="https://rvfinancialfreedom.kit.com/eeff810649/index.js"></script>
+      </section>
+
+    </div>
+
+  </div>
 </main>
 
 <script src="script.js"></script>
