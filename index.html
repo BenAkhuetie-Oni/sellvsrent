@@ -5,6 +5,9 @@
   <title>Sell vs Rent Calculator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css" />
+
   <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R1KF7GYGF"></script>
   <script>
@@ -13,9 +16,6 @@
     gtag('js', new Date());
     gtag('config', 'G-3R1KF7GYGF');
   </script>
-
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -24,20 +24,14 @@
     <!-- HEADER -->
     <header class="header">
       <div class="brand">
-        <h1>Sell vs Rent Calculator</h1>
-        <div class="subtitle">
-          Made by <strong>RV Financial Freedom</strong>
+        <div>
+          <h1>Sell vs Rent Calculator</h1>
+          <p class="sub">Made by <strong>RV Financial Freedom</strong></p>
         </div>
+        <a class="topCta" href="https://rvfinancialfreedom.com" target="_blank">
+          Visit RVFinancialFreedom.com
+        </a>
       </div>
-
-      <a
-        class="header-btn"
-        href="https://rvfinancialfreedom.com"
-        target="_blank"
-        rel="noopener"
-      >
-        Visit RVFinancialFreedom.com
-      </a>
     </header>
 
     <!-- MAIN GRID -->
@@ -46,71 +40,83 @@
       <!-- LEFT COLUMN -->
       <div class="col">
 
-        <!-- INPUTS CARD -->
-        <section class="card">
+        <!-- INPUTS -->
+        <div class="card">
           <h2>Inputs</h2>
 
-          <div class="inputs-grid">
-            <label>
-              Estimated home value ($)
-              <input id="homeValue" placeholder="450000" />
-            </label>
+          <label>Estimated home value ($)</label>
+          <input type="number" id="homeValue" placeholder="450000" />
 
-            <label>
-              Remaining loan balance ($)
-              <input id="loanBalance" placeholder="400000" />
-            </label>
+          <label>Remaining loan balance ($)</label>
+          <input type="number" id="loanBalance" placeholder="400000" />
 
-            <label>
-              Estimated monthly rent ($)
-              <input id="rent" placeholder="3000" />
-            </label>
+          <label>Estimated monthly rent ($)</label>
+          <input type="number" id="monthlyRent" placeholder="3000" />
 
-            <label>
-              Mortgage rate (%)
-              <input id="rate" placeholder="6.75" />
-            </label>
+          <label>Mortgage rate (%)</label>
+          <input type="number" step="0.01" id="mortgageRate" placeholder="6.75" />
 
-            <label>
-              Monthly property taxes ($)
-              <input id="taxes" placeholder="400" />
-            </label>
+          <label>Monthly property taxes ($)</label>
+          <input type="number" id="monthlyTaxes" placeholder="400" />
 
-            <label>
-              Monthly insurance ($)
-              <input id="insurance" placeholder="500" />
-            </label>
+          <label>Monthly insurance ($)</label>
+          <input type="number" id="monthlyInsurance" placeholder="500" />
 
-            <label>
-              Loan end date
-              <input id="loanEnd" type="month" />
-            </label>
-          </div>
+          <label>Loan end date</label>
+          <input type="month" id="loanEndDate" />
 
-          <details class="optional">
+          <!-- OPTIONAL ASSUMPTIONS -->
+          <details class="accordion">
             <summary>Optional assumptions</summary>
 
-            <label>
-              Market return (%)
-              <input id="marketReturn" placeholder="7" />
-            </label>
+            <label>Market return (%)</label>
+            <input type="number" step="0.1" id="marketReturn" placeholder="7" />
 
-            <label>
-              Home appreciation (%)
-              <input id="appreciation" placeholder="3" />
-            </label>
+            <label>Home appreciation (%)</label>
+            <input type="number" step="0.1" id="homeAppreciation" placeholder="3" />
 
-            <label>
-              Inflation / rent growth (%)
-              <input id="rentGrowth" placeholder="3" />
-            </label>
+            <label>Rent growth / inflation (%)</label>
+            <input type="number" step="0.1" id="rentGrowth" placeholder="3" />
+
+            <label>Vacancy (%)</label>
+            <input type="number" step="0.1" id="vacancyRate" placeholder="5" />
+
+            <label>Maintenance (%)</label>
+            <input type="number" step="0.1" id="maintenanceRate" placeholder="5" />
+
+            <label>CapEx (%)</label>
+            <input type="number" step="0.1" id="capexRate" placeholder="5" />
+
+            <label>Management (%)</label>
+            <input type="number" step="0.1" id="managementRate" placeholder="0" />
           </details>
 
           <div class="actions">
-            <button id="runBtn">Run</button>
+            <button id="runBtn" class="primary">Run</button>
             <button id="resetBtn">Reset</button>
           </div>
-        </section>
+        </div>
+
+        <!-- NET WORTH TABLE -->
+        <div class="card hidden" id="netWorthCard">
+          <h2>Net Worth Results</h2>
+          <table id="netWorthTable">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>SELL</th>
+                <th>RENT</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <!-- ASSUMPTIONS -->
+        <div class="card hidden" id="assumptionsCard">
+          <h2>Key Assumptions</h2>
+          <ul id="assumptionsList"></ul>
+        </div>
 
       </div>
 
@@ -118,40 +124,20 @@
       <div class="col">
 
         <!-- RESULTS SUMMARY -->
-        <section class="card">
+        <div class="card hidden" id="resultsCard">
           <h2>Results</h2>
-          <ul id="summary"></ul>
+          <ul id="resultsSummary"></ul>
 
-          <canvas id="chart"></canvas>
-        </section>
-
-        <!-- NET WORTH TABLE -->
-        <section class="card">
-          <h2>Net Worth Results</h2>
-
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Year</th>
-                  <th>SELL</th>
-                  <th>RENT</th>
-                </tr>
-              </thead>
-              <tbody id="tableBody"></tbody>
-            </table>
+          <div class="chartWrap">
+            <canvas id="netWorthChart"></canvas>
           </div>
-
-          <div class="assumptions">
-            <h3>Key Assumptions</h3>
-            <ul id="assumptionsList"></ul>
-          </div>
-        </section>
+        </div>
 
       </div>
     </div>
   </div>
 
+  <!-- Script -->
   <script src="script.js"></script>
 </body>
 </html>
