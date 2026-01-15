@@ -20,12 +20,10 @@
 
 <body>
 <header class="wrap header">
-  <div class="brand">
-    <div>
-      <div class="title">Sell vs Rent Calculator</div>
-      <div class="subtitle">
-        Made by <a href="https://rvfinancialfreedom.com" target="_blank">RV Financial Freedom</a>
-      </div>
+  <div>
+    <div class="title">Sell vs Rent Calculator</div>
+    <div class="subtitle">
+      Made by <a href="https://rvfinancialfreedom.com" target="_blank">RV Financial Freedom</a>
     </div>
   </div>
 </header>
@@ -37,14 +35,35 @@
 <section class="card">
 <h2>Inputs</h2>
 <div class="grid2">
-<label>Home value<input id="homeValue" type="number"></label>
-<label>Remaining loan balance<input id="loanBalance" type="number"></label>
-<label>Estimated monthly rent<input id="monthlyRent" type="number"></label>
+<label>Estimated home sale price ($)
+  <input id="homeValue" type="number">
+</label>
+
+<label>Remaining loan balance ($)
+  <input id="loanBalance" type="number">
+</label>
+
+<label>Estimated monthly rent ($)
+  <input id="monthlyRent" type="number">
+</label>
+
 <label></label>
-<label>Mortgage rate (%)<input id="currRate" type="number"></label>
-<label>Loan end date<input id="loanEnd" type="month"></label>
-<label>Monthly property taxes<input id="taxesMonthly" type="number"></label>
-<label>Monthly insurance<input id="insMonthly" type="number"></label>
+
+<label>Current mortgage rate (%)
+  <input id="currRate" type="number">
+</label>
+
+<label>Loan end date
+  <input id="loanEnd" type="month">
+</label>
+
+<label>Monthly property taxes ($)
+  <input id="taxesMonthly" type="number">
+</label>
+
+<label>Monthly insurance ($)
+  <input id="insMonthly" type="number">
+</label>
 </div>
 </section>
 
@@ -52,14 +71,37 @@
 <button class="accordion" id="toggleOptional">Optional assumptions</button>
 <div class="accordionBody" id="optionalBody">
 <div class="grid2">
-<label>Market return (%)<input id="marketReturn" value="7"></label>
-<label>Home appreciation (%)<input id="homeAppreciation" value="3"></label>
-<label>Inflation / rent growth (%)<input id="inflation" value="3"></label>
-<label>Vacancy (% rent)<input id="vacancyPct" value="5"></label>
-<label>Maintenance (% rent)<input id="maintPct" value="5"></label>
-<label>CapEx (% rent)<input id="capexPct" value="5"></label>
-<label>Property management (% rent)<input id="pmPct" value="0"></label>
-<label>Sale closing costs (% home value)<input id="saleClosingPct" value="6"></label>
+<label>Market return (%)
+  <input id="marketReturn" value="7">
+</label>
+
+<label>Home appreciation (%)
+  <input id="homeAppreciation" value="3">
+</label>
+
+<label>Inflation / rent growth (%)
+  <input id="inflation" value="3">
+</label>
+
+<label>Vacancy (% of rent)
+  <input id="vacancyPct" value="5">
+</label>
+
+<label>Maintenance (% of rent)
+  <input id="maintPct" value="5">
+</label>
+
+<label>CapEx (% of rent)
+  <input id="capexPct" value="5">
+</label>
+
+<label>Property management (% of rent)
+  <input id="pmPct" value="0">
+</label>
+
+<label>Sale closing costs (% of home value)
+  <input id="saleClosingPct" value="6">
+</label>
 </div>
 </div>
 </section>
@@ -71,30 +113,40 @@
 </div>
 
 <div class="col">
+
 <section class="card hidden" id="cardResults">
 <h2>Results</h2>
 <ul class="bullets" id="resultsSummary"></ul>
-<canvas id="nwChart"></canvas>
+<canvas id="nwChart" height="140"></canvas>
 </section>
 
 <section class="card hidden" id="cardTable">
 <h2>Net Worth Results</h2>
+
 <div class="tableWrap">
-<table class="table" id="summaryTable">
+<table class="table tight" id="summaryTable">
 <thead>
-<tr><th>Year</th><th>SELL</th><th>RENT</th></tr>
+<tr>
+  <th>Year</th>
+  <th>SELL</th>
+  <th>RENT</th>
+</tr>
 </thead>
 <tbody></tbody>
 </table>
 </div>
-<div class="assumptions" id="assumptionNote"></div>
+
+<div class="assumptions">
+  <strong>Key Assumptions</strong>
+  <ul id="assumptionNote"></ul>
+</div>
 </section>
 
 <section class="card">
 <script async data-uid="eeff810649" src="https://rvfinancialfreedom.kit.com/eeff810649/index.js"></script>
 </section>
-</div>
 
+</div>
 </div>
 </main>
 
