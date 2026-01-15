@@ -2,16 +2,17 @@
 
 const YEARS = 30;
 const MONTHS = YEARS * 12;
+
 const $ = id => document.getElementById(id);
-const pct = x => Number(x || 0) / 100;
-const mRate = a => Math.pow(1 + a, 1 / 12) - 1;
+const pct = x => Number(x) / 100;
+const mRate = r => Math.pow(1 + r, 1 / 12) - 1;
 
 let chart;
 
 function fmt(n) {
   const abs = Math.abs(n);
-  if (abs >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
-  return '$' + Math.round(n / 1e3) + 'K';
+  if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  return `$${Math.round(n / 1_000)}K`;
 }
 
 function pmt(p, r, m) {
@@ -27,118 +28,92 @@ function run() {
   const taxes0 = +$('taxesMonthly').value;
   const ins0 = +$('insMonthly').value;
 
-  const loanEnd = new Date($('loanEnd').value + '-01');
-  const monthsLeft = Math.max(1, (loanEnd - new Date()) / 2628e6);
-  const mortgage = pmt(lb, rate, monthsLeft);
+  const market = 0.07;
+  const appreciation = 0.03;
+  const inflation = 0.03;
 
-  const mkt = pct($('marketReturn').value);
-  const app = pct($('homeAppreciation').value);
-  const infl = pct($('inflation').value);
-  const vac = pct($('vacancyPct').value);
-  const maint = pct($('maintPct').value);
-  const cap = pct($('capexPct').value);
-  const pm = pct($('pmPct').value);
-  const close = pct($('saleClosingPct').value);
+  const mortgage = pmt(lb, rate, 360);
 
-  // Initial conditions (YEAR 0 identical)
-  let sellStocks = hv * (1 - close) - lb;
-  let rentStocks = sellStocks;
-  let rentHome = hv;
-  let rentLoan = lb;
+  // --- YEAR 0 ---
+  let sellStocks = hv - lb;
+  let rentStocks = 0;
+  let homeValue = hv;
+  let loan = lb;
 
-  let rent = rent0;
+  const sell = {};
+  const rent = {};
+
+  sell[0] = { stocks: sellStocks, equity: 0 };
+  rent[0] = { stocks: 0, equity: hv - lb };
+
+  let rentCash = rent0;
   let taxes = taxes0;
   let ins = ins0;
 
-  const sellByYear = {};
-  const rentByYear = {};
-
-  let breakEvenYear = null;
-  let netRentalCF = 0;
-
-  const y0CashFlow =
-    rent0 - rent0 * (vac + maint + cap + pm) - mortgage - taxes0 - ins0;
-
-  // Store YEAR 0
-  sellByYear[0] = { stocks: sellStocks, equity: 0 };
-  rentByYear[0] = { stocks: rentStocks, equity: rentHome - rentLoan };
-
   for (let m = 1; m <= MONTHS; m++) {
-    sellStocks *= 1 + mRate(mkt);
-    rentStocks *= 1 + mRate(mkt);
-    rentHome *= 1 + mRate(app);
+    sellStocks *= 1 + mRate(market);
+    rentStocks *= 1 + mRate(market);
+    homeValue *= 1 + mRate(appreciation);
 
-    rent *= 1 + mRate(infl);
-    taxes *= 1 + mRate(infl);
-    ins *= 1 + mRate(infl);
+    rentCash *= 1 + mRate(inflation);
+    taxes *= 1 + mRate(inflation);
+    ins *= 1 + mRate(inflation);
 
-    if (rentLoan > 0) {
-      const interest = rentLoan * (rate / 12);
-      rentLoan = Math.max(0, rentLoan - (mortgage - interest));
+    if (loan > 0) {
+      const interest = loan * rate / 12;
+      loan = Math.max(0, loan - (mortgage - interest));
     }
 
-    const netCF =
-      rent - rent * (vac + maint + cap + pm) - mortgage - taxes - ins;
+    const netCF = rentCash - mortgage - taxes - ins;
 
-    netRentalCF += netCF;
-
-    if (netCF >= 0) {
-      rentStocks += netCF;
-      if (!breakEvenYear) breakEvenYear = Math.ceil(m / 12);
-    } else {
-      sellStocks += -netCF;
-    }
+    if (netCF > 0) rentStocks += netCF;
+    else sellStocks += -netCF;
 
     if (m % 12 === 0) {
       const y = m / 12;
-      sellByYear[y] = { stocks: sellStocks, equity: 0 };
-      rentByYear[y] = { stocks: rentStocks, equity: rentHome - rentLoan };
+      sell[y] = { stocks: sellStocks, equity: 0 };
+      rent[y] = { stocks: rentStocks, equity: homeValue - loan };
     }
   }
 
   $('cardResults').classList.remove('hidden');
   $('cardTable').classList.remove('hidden');
 
-  const sell30 = sellByYear[30].stocks;
-  const rent30 = rentByYear[30].stocks + rentByYear[30].equity;
-
-  const winner = sell30 > rent30 ? 'SELL' : 'RENT';
-  const loser = winner === 'SELL' ? 'RENT' : 'SELL';
-  const diff = Math.abs(sell30 - rent30);
-
-  const cashFlowLine =
-    y0CashFlow < 0
-      ? `RENT results in negative cash flow (${fmt(y0CashFlow)}/month at Y0) until breaking even at Year ${breakEvenYear} (Net Rental Cash Flow, Y0–Y30: ${fmt(netRentalCF)}). Negative cash flow is accounted for in SELL scenario as “Avoided Negative Cash Flow” invested in stocks.`
-      : `RENT results in positive cash flow (${fmt(y0CashFlow)}/month at Y0; Net Rental Cash Flow, Y0–Y30: ${fmt(netRentalCF)}). RENT assumes positive cash flow is invested in stocks.`;
+  const sell30 = sell[30].stocks;
+  const rent30 = rent[30].stocks + rent[30].equity;
 
   $('resultsSummary').innerHTML = `
-    <li><strong>Net Worth (Year 30):</strong> ${winner} (${fmt(winner === 'SELL' ? sell30 : rent30)}) results in a higher net worth vs. ${loser} (${fmt(loser === 'SELL' ? sell30 : rent30)}) (+${fmt(diff)} difference)</li>
-    <li><strong>Rental Cash Flow:</strong> ${cashFlowLine}</li>
+    <li><strong>Net Worth (Year 30):</strong>
+      ${rent30 > sell30 ? 'RENT' : 'SELL'} wins —
+      ${fmt(Math.max(sell30, rent30))} vs ${fmt(Math.min(sell30, rent30))}
+    </li>
   `;
 
-  const tbody = $('summaryTable').querySelector('tbody');
+  const tbody = $('summaryTable');
   tbody.innerHTML = '';
 
   [0, 1, 5, 10, 30].forEach(y => {
-    const s = sellByYear[y];
-    const r = rentByYear[y];
-    tbody.insertAdjacentHTML(
-      'beforeend',
-      `<tr>
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr>
         <td>${y}</td>
-        <td><strong>${fmt(s.stocks)}</strong> (${fmt(s.stocks)} stocks)</td>
-        <td><strong>${fmt(r.stocks + r.equity)}</strong> (${fmt(r.stocks)} stocks, ${fmt(r.equity)} home equity)</td>
-      </tr>`
-    );
+        <td><strong>${fmt(sell[y].stocks)}</strong>
+          (${fmt(sell[y].stocks)} stocks)
+        </td>
+        <td><strong>${fmt(rent[y].stocks + rent[y].equity)}</strong>
+          (${fmt(rent[y].stocks)} stocks, ${fmt(rent[y].equity)} home equity)
+        </td>
+      </tr>
+    `);
   });
 
   $('assumptionNote').innerHTML = `
-    <li>Market return ${$('marketReturn').value}%, home appreciation ${$('homeAppreciation').value}%</li>
-    <li>Inflation / rent growth ${$('inflation').value}% annually</li>
-    <li>Rental costs: ${$('vacancyPct').value}% vacancy, ${$('maintPct').value}% maintenance, ${$('capexPct').value}% CapEx, ${$('pmPct').value}% management</li>
+    <li>Market return: 7%</li>
+    <li>Home appreciation: 3%</li>
+    <li>Inflation / rent growth: 3%</li>
   `;
 
   if (chart) chart.destroy();
+
   chart = new Chart($('nwChart'), {
     type: 'line',
     data: {
@@ -146,25 +121,32 @@ function run() {
       datasets: [
         {
           label: 'SELL',
-          data: Object.values(sellByYear).map(v => v.stocks),
+          data: Object.values(sell).map(v => v.stocks),
           borderWidth: 2
         },
         {
           label: 'RENT',
-          data: Object.values(rentByYear).map(v => v.stocks + v.equity),
+          data: Object.values(rent).map(v => v.stocks + v.equity),
           borderWidth: 2
         }
       ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${fmt(ctx.raw)}`
+          }
+        }
+      }
     }
   });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  $('optionalBody').style.display = 'none';
-  $('toggleOptional').onclick = () => {
-    const b = $('optionalBody');
-    b.style.display = b.style.display === 'block' ? 'none' : 'block';
-  };
   $('btnRun').onclick = run;
   $('btnReset').onclick = () => location.reload();
 });
