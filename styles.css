@@ -389,32 +389,3 @@ input:focus{
 .table td strong { font-weight: 900; }
 .table td span { font-weight: 400; }
 .table { min-width: 680px; }
-
-/* existing styles unchanged above */
-
-/* tighter net worth table */
-.table.tight {
-  table-layout: auto;
-}
-
-.table.tight th,
-.table.tight td {
-  padding: 6px 6px;
-  font-size: 13px;
-}
-
-.table.tight td {
-  white-space: nowrap;
-}
-
-.table.tight th:nth-child(1),
-.table.tight td:nth-child(1) {
-  width: 50px;
-}
-
-.table.tight th:nth-child(2),
-.table.tight td:nth-child(2),
-.table.tight th:nth-child(3),
-.table.tight td:nth-child(3) {
-  width: auto;
-}
