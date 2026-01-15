@@ -1,4 +1,6 @@
-# sellvsrent
-Should I Sell My House or Rent It (Calculator)
+# Sell vs Rent My House
 
-Brand: Outdoor Financial Freedom (https://outdoorfinancialfreedom.com)
+Should I Sell or Rent My House? (Calculator)
+
+Brand: RV Financial Freedom (https://rvfinancialfreedom.com)
+
