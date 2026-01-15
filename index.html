@@ -19,98 +19,138 @@
 </head>
 
 <body>
-  <header class="header">
-    <div>
-      <h1>Sell vs Rent Calculator</h1>
-      <div class="subtitle">Made by <strong>RV Financial Freedom</strong></div>
+  <div class="wrap">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="brand">
+        <h1>Sell vs Rent Calculator</h1>
+        <div class="subtitle">
+          Made by <strong>RV Financial Freedom</strong>
+        </div>
+      </div>
+
+      <a
+        class="header-btn"
+        href="https://rvfinancialfreedom.com"
+        target="_blank"
+        rel="noopener"
+      >
+        Visit RVFinancialFreedom.com
+      </a>
+    </header>
+
+    <!-- MAIN GRID -->
+    <div class="grid">
+
+      <!-- LEFT COLUMN -->
+      <div class="col">
+
+        <!-- INPUTS CARD -->
+        <section class="card">
+          <h2>Inputs</h2>
+
+          <div class="inputs-grid">
+            <label>
+              Estimated home value ($)
+              <input id="homeValue" placeholder="450000" />
+            </label>
+
+            <label>
+              Remaining loan balance ($)
+              <input id="loanBalance" placeholder="400000" />
+            </label>
+
+            <label>
+              Estimated monthly rent ($)
+              <input id="rent" placeholder="3000" />
+            </label>
+
+            <label>
+              Mortgage rate (%)
+              <input id="rate" placeholder="6.75" />
+            </label>
+
+            <label>
+              Monthly property taxes ($)
+              <input id="taxes" placeholder="400" />
+            </label>
+
+            <label>
+              Monthly insurance ($)
+              <input id="insurance" placeholder="500" />
+            </label>
+
+            <label>
+              Loan end date
+              <input id="loanEnd" type="month" />
+            </label>
+          </div>
+
+          <details class="optional">
+            <summary>Optional assumptions</summary>
+
+            <label>
+              Market return (%)
+              <input id="marketReturn" placeholder="7" />
+            </label>
+
+            <label>
+              Home appreciation (%)
+              <input id="appreciation" placeholder="3" />
+            </label>
+
+            <label>
+              Inflation / rent growth (%)
+              <input id="rentGrowth" placeholder="3" />
+            </label>
+          </details>
+
+          <div class="actions">
+            <button id="runBtn">Run</button>
+            <button id="resetBtn">Reset</button>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="col">
+
+        <!-- RESULTS SUMMARY -->
+        <section class="card">
+          <h2>Results</h2>
+          <ul id="summary"></ul>
+
+          <canvas id="chart"></canvas>
+        </section>
+
+        <!-- NET WORTH TABLE -->
+        <section class="card">
+          <h2>Net Worth Results</h2>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Year</th>
+                  <th>SELL</th>
+                  <th>RENT</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="assumptions">
+            <h3>Key Assumptions</h3>
+            <ul id="assumptionsList"></ul>
+          </div>
+        </section>
+
+      </div>
     </div>
-    <a class="header-btn" href="https://rvfinancialfreedom.com" target="_blank">
-      Visit RVFinancialFreedom.com
-    </a>
-  </header>
-
-  <main class="grid">
-    <!-- INPUTS -->
-    <section class="card">
-      <h2>Inputs</h2>
-
-      <div class="inputs-grid">
-        <label>
-          Estimated home value ($)
-          <input id="homeValue" placeholder="450000" />
-        </label>
-
-        <label>
-          Remaining loan balance ($)
-          <input id="loanBalance" placeholder="400000" />
-        </label>
-
-        <label>
-          Estimated monthly rent ($)
-          <input id="rent" placeholder="3000" />
-        </label>
-
-        <label>
-          Mortgage rate (%)
-          <input id="rate" placeholder="6.75" />
-        </label>
-
-        <label>
-          Monthly property taxes ($)
-          <input id="taxes" placeholder="400" />
-        </label>
-
-        <label>
-          Monthly insurance ($)
-          <input id="insurance" placeholder="500" />
-        </label>
-
-        <label>
-          Loan end date
-          <input id="loanEnd" type="month" />
-        </label>
-      </div>
-
-      <details class="optional">
-        <summary>Optional assumptions</summary>
-
-        <label>Market return (%) <input id="marketReturn" placeholder="7" /></label>
-        <label>Home appreciation (%) <input id="appreciation" placeholder="3" /></label>
-        <label>Rent growth (%) <input id="rentGrowth" placeholder="3" /></label>
-      </details>
-
-      <div class="actions">
-        <button id="runBtn">Run</button>
-        <button id="resetBtn">Reset</button>
-      </div>
-    </section>
-
-    <!-- RESULTS -->
-    <section class="card">
-      <h2>Results</h2>
-      <ul id="summary"></ul>
-
-      <canvas id="chart"></canvas>
-    </section>
-
-    <!-- TABLE -->
-    <section class="card">
-      <h2>Net Worth Results</h2>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Year</th><th>SELL</th><th>RENT</th></tr>
-          </thead>
-          <tbody id="tableBody"></tbody>
-        </table>
-      </div>
-
-      <div class="assumptions">
-        <h3>Key Assumptions</h3>
-        <ul id="assumptionsList"></ul>
-      </div>
-    </section>
-  </main>
+  </div>
 
   <script src="script.js"></script>
 </body>
