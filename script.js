@@ -532,101 +532,67 @@ function renderTable(series) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${y}</td>
-      <td>${money(series.sellNW[y])}</td>
+      <td><strong>${money(series.sellNW[y])}</strong></td>
       <td>${sellIncome}</td>
-      <td>${money(series.rentKeepNW[y])}</td>
+      <td><strong>${money(series.rentKeepNW[y])}</strong></td>
       <td>${keepIncome}</td>
-      <td>${money(series.rentRefiNW[y])}</td>
+      <td><strong>${money(series.rentRefiNW[y])}</strong></td>
       <td>${refiIncome}</td>
     `;
     tbody.appendChild(tr);
   });
 }
 
+
 function renderResultsSummary(series, meta) {
   const y = YEARS;
-
-  const nw = pickWinnerAtYear(series, y, "nw");
-  const inc = pickWinnerAtYear(series, y, "incomePotential");
-
-  const nwTop = labelScenario(nw.top.key);
-  const nwBottom = labelScenario(nw.bottom.key);
-
-  const incTop = labelScenario(inc.top.key);
-  const incBottom = labelScenario(inc.bottom.key);
-
-  // Year-30 income split for the income winner
-  const incomeMap = {
-    sell: {
-      total: series.sellIncomePotential[y],
-      nonRental: series.sellNonRentalIncome[y],
-      rental: series.sellRentalIncome[y],
-    },
-    rentKeep: {
-      total: series.rentKeepIncomePotential[y],
-      nonRental: series.rentKeepNonRentalIncome[y],
-      rental: series.rentKeepRentalIncome[y],
-    },
-    rentRefi: {
-      total: series.rentRefiIncomePotential[y],
-      nonRental: series.rentRefiNonRentalIncome[y],
-      rental: series.rentRefiRentalIncome[y],
-    }
-  };
-
-  const winKey = inc.top.key;
-  const winIncome = incomeMap[winKey];
-
-  const sellHit = meta.sellTransactionHit;
-
-  const rentNoRefiYear1Annual = roundTo1K(series.rentKeepYear1AnnualRentalIncome);
-  const rentWithRefiYear1Annual = roundTo1K(series.rentRefiYear1AnnualRentalIncome);
-
-  const rentNoRefiMonthly = roundTo1K(rentNoRefiYear1Annual / 12);
-  const rentWithRefiMonthly = roundTo1K(rentWithRefiYear1Annual / 12);
-
   const ul = $("resultsSummary");
   ul.innerHTML = "";
 
-  const li = (text) => {
+  const li = (html) => {
     const el = document.createElement("li");
-    el.textContent = text;
+    el.innerHTML = html;
     ul.appendChild(el);
   };
 
-  li(`Net Worth: ${nwTop} results in your highest net worth in ${y} years, while ${nwBottom} resulted in your lowest net worth.`);
+  // --- Net Worth (Year 30)
+  const nwVals = [
+    { k: "SELL", v: series.sellNW[y] },
+    { k: "RENT (w/o REFI)", v: series.rentKeepNW[y] },
+    { k: "RENT (w/ REFI)", v: series.rentRefiNW[y] },
+  ].sort((a,b)=>b.v-a.v);
+
+  const diff = nwVals[0].v - nwVals[2].v;
 
   li(
-    `Income Potential: ${incTop} results in your highest income potential in ${y} years of ~${moneyK(winIncome.total)}/yr ` +
-    `(~${moneyK(winIncome.nonRental)} Non-Rental, ~${moneyK(winIncome.rental)} Rental), while ${incBottom} resulted in your lowest income potential.`
+    `<strong>Net Worth (Year ${y}):</strong> ${nwVals[0].k} (${moneyK(nwVals[0].v)}) results in a higher net worth vs. ${nwVals[2].k} (${moneyK(nwVals[2].v)}) (<strong>+${moneyK(diff)}</strong> difference)`
   );
 
-  li(`SELL: Your net worth takes a ~${moneyK(sellHit)} hit due to total transaction costs.`);
-  li(`RENT (w/o REFI): Renting your home (without refinancing) results in an estimated net rental income of ${moneyK(rentNoRefiMonthly)} per month (${moneyK(rentNoRefiYear1Annual)} per year) in year 1.`);
-  li(`RENT (w/ REFI): Renting your home (with refinancing) results in an estimated net rental income of ${moneyK(rentWithRefiMonthly)} per month (${moneyK(rentWithRefiYear1Annual)} per year) in year 1.`);
+  // --- Rental Cash Flow
+  let year0Monthly = series.rentKeepYear1AnnualRentalIncome / 12;
+  let cumulative = 0;
+  let breakevenYear = null;
 
-  // Additional details + breakeven
-  const notes = $("resultsNotes");
-
-  let breakevenText = "Refi breakeven: not applicable (refi does not improve year-1 net rental income).";
-  if (meta.breakevenMonths != null && Number.isFinite(meta.breakevenMonths)) {
-    const months = meta.breakevenMonths;
-    if (months <= 0) breakevenText = "Refi breakeven: immediate (year-1 net rental income improvement is already positive).";
-    else if (months > 600) breakevenText = "Refi breakeven: 50+ years (upfront costs likely never paid back via improved rental cash flow).";
-    else breakevenText = `Refi breakeven: ~${months.toFixed(0)} months (~${(months/12).toFixed(1)} years), based on year-1 monthly net rental income improvement vs upfront refi costs (cash-in + closing fees).`;
+  for (let i = 0; i <= y; i++) {
+    cumulative += (series.rentKeepRentalIncome[i] || 0);
+    if (breakevenYear === null && cumulative >= 0 && i > 0) breakevenYear = i;
   }
 
-  notes.innerHTML = `
-    <div class="noteTitle">Additional details</div>
-    <div class="noteBody">
-      <strong>Rental Income</strong> is the property’s annual net rental cash flow (rent minus vacancy/repairs/capex/PM/PITI), after the optional rental tax rate.<br/>
-      <strong>Non-Rental Income</strong> is a rule-of-thumb withdrawal (default ${$("withdrawalRate").value || "4.0"}%) from the liquid investment account.<br/>
-      <strong>Income Potential</strong> = Rental Income + Non-Rental Income.<br/>
-      A refi can lower monthly payments but still reduce long-term results due to (a) upfront costs (cash-in + closing fees), (b) reset amortization, and (c) locking cash into equity instead of letting it compound in the market.
-      <div class="noteLine">${breakevenText}</div>
-    </div>
-  `;
+  const net30 = series.rentKeepRentalIncome.reduce((a,b)=>a+b,0);
+  const monthK = moneyK(Math.abs(year0Monthly));
+
+  if (year0Monthly < 0) {
+    li(
+      `<strong>Rental Cash Flow:</strong> RENT results in negative cash flow (-${monthK}/month at Y0) until breaking even at Year ${breakevenYear}. ` +
+      `(Net Rental Cash Flow, Y0–Y30: ${moneyK(net30)}). Negative cash flow is accounted for in the SELL scenario as “Avoided Negative Cash Flow” invested in stocks. Positive cash flow is invested in stocks in the RENT scenario.`
+    );
+  } else {
+    li(
+      `<strong>Rental Cash Flow:</strong> RENT results in positive cash flow (+${monthK}/month at Y0; Net Rental Cash Flow, Y0–Y30: ${moneyK(net30)}). RENT assumes positive cash flow is invested in stocks.`
+    );
+  }
 }
+
 
 function renderAssumptionNote(meta, inputs) {
   const { optional } = inputs;
@@ -638,14 +604,14 @@ function renderAssumptionNote(meta, inputs) {
 
   note.innerHTML = `
     <div class="muted">
-      <strong>Key assumptions (editable in Optional Assumptions):</strong><br/>
+      <strong>Key assumptions (editable in Optional Assumptions):</strong><ul>
       Market return: ${optional.marketReturn.toFixed(1)}% · Home appreciation: ${optional.homeAppreciation.toFixed(1)}% · Inflation/rent growth: ${optional.inflation.toFixed(1)}%<br/>
       Rental costs: Vacancy ${optional.vacancyPct.toFixed(1)}%, Maint ${optional.maintPct.toFixed(1)}%, CapEx ${optional.capexPct.toFixed(1)}%, PM ${optional.pmPct.toFixed(1)}% · Rental tax rate: ${optional.rentalTaxRate.toFixed(1)}%<br/>
       ${meta.taxLine}<br/>
       ${piLine}<br/>
       Refi P&amp;I (computed): ${money(meta.refiPI)} · Refi closing fees: ${optional.refiClosingPct.toFixed(1)}% of new loan<br/>
       Refi upfront costs (for breakeven): cash-in + closing fees = ${money(meta.refiUpfrontCost)}<br/>
-      Starting net worth is equal at Year 0 (we assume the refi cash-in amount exists in all scenarios at Year 0).
+      <li>Starting net worth is equal at Year 0 (we assume the refi cash-in amount exists in all scenarios at Year 0).</li></ul>
     </div>
   `;
 }

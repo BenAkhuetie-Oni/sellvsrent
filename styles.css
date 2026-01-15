@@ -385,3 +385,7 @@ input:focus{
   padding-top: 14px;
 }
 .muted{ color: var(--muted); }
+
+.table td strong { font-weight: 900; }
+.table td span { font-weight: 400; }
+.table { min-width: 680px; }

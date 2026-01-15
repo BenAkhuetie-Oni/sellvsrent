@@ -1,4 +1,4 @@
-# Sell vs Rent My House
+# RV Financial Freedom Calculator
 
 Should I Sell or Rent My House? (Calculator)
 
