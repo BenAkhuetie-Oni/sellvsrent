@@ -1,59 +1,214 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sell vs Rent Calculator | RV Financial Freedom</title>
-  <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script async data-uid="eeff810649" src="https://rvfinancialfreedom.kit.com/eeff810649/index.js"></script>
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R1KF7GYGF"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-3R1KF7GYGF');
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sell vs. Rent Calculator | RV Financial Freedom</title>
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R1KF7GYGF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-3R1KF7GYGF');
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --brand-blue: #0052FF;
+            --brand-dark: #0B0E14;
+            --brand-card: #161B22;
+        }
+        body { background-color: var(--brand-dark); color: white; font-family: 'Inter', sans-serif; }
+        .card { background-color: var(--brand-card); border: 1px solid #30363d; border-radius: 12px; }
+        .input-field { background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 6px; padding: 8px; width: 100%; }
+        .accent-blue { color: var(--brand-blue); }
+        .bg-blue { background-color: var(--brand-blue); }
+        input[type="range"] { accent-color: var(--brand-blue); }
+    </style>
 </head>
-<body>
-  <header>
-    <h1>Sell vs Rent Calculator</h1>
-    <a href="https://rvfinancialfreedom.com" target="_blank" class="visit">Visit RVFinancialFreedom.com</a>
-  </header>
+<body class="p-4 md:p-8">
 
-  <main>
-    <section class="card">
-      <h2>Inputs</h2>
-      <div class="grid">
-        <label>Estimated Home Value ($)<input id="homeValue" type="number" value="456000"></label>
-        <label>Remaining Loan Balance ($)<input id="loanBalance" type="number" value="395658"></label>
-        <label>Estimated Monthly Rent ($)<input id="rent" type="number" value="2995"></label>
-        <label>Mortgage Rate (%)<input id="rate" type="number" step="0.01" value="6.875"></label>
-        <label>Monthly Property Taxes ($)<input id="taxes" type="number" value="415"></label>
-        <label>Monthly Insurance ($)<input id="insurance" type="number" value="538"></label>
-      </div>
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 flex justify-between items-center">
+            <h1 class="text-2xl font-bold italic">RV FINANCIAL <span class="accent-blue">FREEDOM</span></h1>
+            <div class="text-sm opacity-70 text-right">Property Analysis Tool</div>
+        </header>
 
-      <details>
-        <summary>Advanced Assumptions</summary>
-        <div class="grid">
-          <label>Market Return (%)<input id="marketReturn" type="number" value="7"></label>
-          <label>Home Appreciation (%)<input id="homeAppreciation" type="number" value="3"></label>
-          <label>Rent Growth (%)<input id="rentGrowth" type="number" value="3"></label>
-          <label><input id="refi" type="checkbox"> Include Refinance</label>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div class="card p-6 space-y-6">
+                <h2 class="text-xl font-semibold border-b border-gray-700 pb-2">Property Details</h2>
+                
+                <div>
+                    <label class="block text-sm opacity-80 mb-1">Current Market Value ($)</label>
+                    <input type="number" id="marketValue" class="input-field" value="500000" oninput="calculate()">
+                </div>
+
+                <div>
+                    <label class="block text-sm opacity-80 mb-1">Mortgage Balance ($)</label>
+                    <input type="number" id="mortgageBalance" class="input-field" value="300000" oninput="calculate()">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm opacity-80 mb-1">Selling Costs (%)</label>
+                        <input type="number" id="sellingCosts" class="input-field" value="6" oninput="calculate()">
+                    </div>
+                    <div>
+                        <label class="block text-sm opacity-80 mb-1">Capital Gains Tax (%)</label>
+                        <input type="number" id="cgt" class="input-field" value="15" oninput="calculate()">
+                    </div>
+                </div>
+
+                <hr class="border-gray-700">
+
+                <h2 class="text-xl font-semibold border-b border-gray-700 pb-2">Investment Outlook</h2>
+                
+                <div>
+                    <label class="block text-sm opacity-80 mb-1">Alternative ROI (if sold) (%)</label>
+                    <input type="range" id="roi" min="1" max="15" value="8" class="w-full" oninput="calculate()">
+                    <div class="flex justify-between text-xs mt-1"><span>1%</span><span id="roiVal" class="accent-blue font-bold">8%</span><span>15%</span></div>
+                </div>
+
+                <div>
+                    <label class="block text-sm opacity-80 mb-1">Annual Rent (Gross) ($)</label>
+                    <input type="number" id="annualRent" class="input-field" value="30000" oninput="calculate()">
+                </div>
+                
+                <div>
+                    <label class="block text-sm opacity-80 mb-1">Holding Period (Years)</label>
+                    <input type="number" id="years" class="input-field" value="10" oninput="calculate()">
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-6">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="card p-6 text-center border-t-4 border-blue-600">
+                        <div class="text-gray-400 text-sm uppercase tracking-wider">Net Worth: Sell Now</div>
+                        <div id="sellResult" class="text-3xl font-bold mt-2">$0</div>
+                        <div class="text-xs text-gray-500 mt-1">Invested proceeds over <span class="yearsDisplay">10</span> years</div>
+                    </div>
+                    <div class="card p-6 text-center border-t-4 border-green-500">
+                        <div class="text-gray-400 text-sm uppercase tracking-wider">Net Worth: Rent Out</div>
+                        <div id="rentResult" class="text-3xl font-bold mt-2">$0</div>
+                        <div class="text-xs text-gray-500 mt-1">Equity + Cashflow over <span class="yearsDisplay">10</span> years</div>
+                    </div>
+                </div>
+
+                <div class="card p-6">
+                    <h3 class="text-lg font-medium mb-4">Wealth Accumulation Over Time</h3>
+                    <canvas id="comparisonChart" height="250"></canvas>
+                </div>
+
+                <div class="card p-6 flex flex-col items-center justify-center text-center">
+                    <h3 class="text-xl font-bold mb-4">Want the full spreadsheet model?</h3>
+                    <p class="text-gray-400 mb-4 max-w-md">Join our community to get the advanced version of this "Sell vs Rent" model and start your journey to financial freedom.</p>
+                    <script async data-uid="eeff810649" src="https://rvfinancialfreedom.kit.com/eeff810649/index.js"></script>
+                </div>
+            </div>
         </div>
-      </details>
+    </div>
 
-      <button onclick="runCalc()">Run</button>
-    </section>
+    <script>
+        let myChart;
 
-    <section class="card">
-      <h2>Results</h2>
-      <canvas id="netWorthChart"></canvas>
-      <div id="summary"></div>
-    </section>
-  </main>
+        function calculate() {
+            // Get Input Values
+            const marketValue = parseFloat(document.getElementById('marketValue').value) || 0;
+            const mortgage = parseFloat(document.getElementById('mortgageBalance').value) || 0;
+            const sellCostPct = parseFloat(document.getElementById('sellingCosts').value) / 100;
+            const cgtPct = parseFloat(document.getElementById('cgt').value) / 100;
+            const roi = parseFloat(document.getElementById('roi').value) / 100;
+            const annualRent = parseFloat(document.getElementById('annualRent').value) || 0;
+            const years = parseInt(document.getElementById('years').value) || 1;
 
-  <script src="js/calculator.js"></script>
-  <script src="js/charts.js"></script>
+            document.getElementById('roiVal').innerText = (roi * 100).toFixed(0) + '%';
+            document.querySelectorAll('.yearsDisplay').forEach(el => el.innerText = years);
+
+            // Logic: Sell Scenario
+            const grossProceeds = marketValue - mortgage;
+            const sellingCosts = marketValue * sellCostPct;
+            const taxableGain = Math.max(0, (marketValue - sellingCosts) - (marketValue * 0.8)); // Simple CGT logic matching excel placeholder
+            const netProceeds = grossProceeds - sellingCosts - (taxableGain * cgtPct);
+            
+            // Logic: Rent Scenario
+            const annualExpenses = annualRent * 0.35; // Management, maintenance, insurance (approx 35%)
+            const netCashFlow = annualRent - annualExpenses;
+            const propertyAppreciationRate = 0.04; // Standard 4%
+
+            let sellData = [];
+            let rentData = [];
+            let labels = [];
+
+            for (let i = 0; i <= years; i++) {
+                labels.push('Year ' + i);
+                
+                // Sell Value calculation (Compound Interest)
+                const sValue = netProceeds * Math.pow(1 + roi, i);
+                sellData.push(sValue.toFixed(0));
+
+                // Rent Value calculation (Property growth + cumulative cash flow)
+                const currentPropValue = marketValue * Math.pow(1 + propertyAppreciationRate, i);
+                const currentEquity = currentPropValue - mortgage;
+                const cumulativeCashFlow = netCashFlow * i;
+                rentData.push((currentEquity + cumulativeCashFlow).toFixed(0));
+            }
+
+            document.getElementById('sellResult').innerText = '$' + parseFloat(sellData[years]).toLocaleString();
+            document.getElementById('rentResult').innerText = '$' + parseFloat(rentData[years]).toLocaleString();
+
+            updateChart(labels, sellData, rentData);
+        }
+
+        function updateChart(labels, sellData, rentData) {
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            
+            if (myChart) { myChart.destroy(); }
+
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Selling & Investing',
+                            data: sellData,
+                            borderColor: '#0052FF',
+                            backgroundColor: 'rgba(0, 82, 255, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Renting Out',
+                            data: rentData,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { labels: { color: '#ffffff' } },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: { ticks: { color: '#888', callback: v => '$' + v/1000 + 'k' }, grid: { color: '#333' } },
+                        x: { ticks: { color: '#888' }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // Initialize
+        calculate();
+    </script>
 </body>
 </html>
