@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sell vs. Rent Calculator | RV Financial Freedom</title>
+    <title>Sell vs. Rent Pro Model | RV Financial Freedom</title>
     
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R1KF7GYGF"></script>
     <script>
@@ -15,200 +15,270 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     
     <style>
         :root {
             --brand-blue: #0052FF;
-            --brand-dark: #0B0E14;
-            --brand-card: #161B22;
+            --bg-dark: #0B0E14;
+            --card-bg: #161B22;
+            --border: #30363d;
         }
-        body { background-color: var(--brand-dark); color: white; font-family: 'Inter', sans-serif; }
-        .card { background-color: var(--brand-card); border: 1px solid #30363d; border-radius: 12px; }
-        .input-field { background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 6px; padding: 8px; width: 100%; }
+        body { background-color: var(--bg-dark); color: #c9d1d9; font-family: 'Inter', sans-serif; }
         .accent-blue { color: var(--brand-blue); }
-        .bg-blue { background-color: var(--brand-blue); }
-        input[type="range"] { accent-color: var(--brand-blue); }
+        .bg-brand { background-color: var(--brand-blue); }
+        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+        .input-group { margin-bottom: 1rem; }
+        label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8b949e; margin-bottom: 0.25rem; }
+        input, select { 
+            background: #0d1117; border: 1px solid var(--border); color: white; 
+            padding: 8px 12px; border-radius: 6px; width: 100%; font-size: 0.9rem;
+        }
+        input:focus { outline: none; border-color: var(--brand-blue); ring: 1px solid var(--brand-blue); }
+        .section-title { font-size: 0.85rem; font-weight: 700; color: white; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1rem; margin-top: 1.5rem; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="p-4 md:p-10">
 
-    <div class="max-w-6xl mx-auto">
-        <header class="mb-8 flex justify-between items-center">
-            <h1 class="text-2xl font-bold italic">RV FINANCIAL <span class="accent-blue">FREEDOM</span></h1>
-            <div class="text-sm opacity-70 text-right">Property Analysis Tool</div>
+    <div class="max-w-7xl mx-auto">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+            <div>
+                <h1 class="text-3xl font-black italic tracking-tighter text-white">RV FINANCIAL <span class="accent-blue">FREEDOM</span></h1>
+                <p class="text-sm opacity-60">Strategic Real Estate Disposition Engine</p>
+            </div>
+            <div class="flex gap-4">
+                <div class="text-right">
+                    <div class="text-xs uppercase text-gray-500">10-Year Delta</div>
+                    <div id="deltaResult" class="text-xl font-bold text-green-400">+$0</div>
+                </div>
+            </div>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
-            <div class="card p-6 space-y-6">
-                <h2 class="text-xl font-semibold border-b border-gray-700 pb-2">Property Details</h2>
+            <div class="lg:col-span-4 space-y-4 max-h-[85vh] overflow-y-auto pr-2 custom-scrollbar">
                 
-                <div>
-                    <label class="block text-sm opacity-80 mb-1">Current Market Value ($)</label>
-                    <input type="number" id="marketValue" class="input-field" value="500000" oninput="calculate()">
-                </div>
-
-                <div>
-                    <label class="block text-sm opacity-80 mb-1">Mortgage Balance ($)</label>
-                    <input type="number" id="mortgageBalance" class="input-field" value="300000" oninput="calculate()">
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm opacity-80 mb-1">Selling Costs (%)</label>
-                        <input type="number" id="sellingCosts" class="input-field" value="6" oninput="calculate()">
+                <div class="card">
+                    <div class="section-title mt-0">PROPERTY & DISPOSITION</div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <label>Sale Price ($)</label>
+                            <input type="number" id="salePrice" value="456000" oninput="runModel()">
+                        </div>
+                        <div class="input-group">
+                            <label>Loan Balance ($)</label>
+                            <input type="number" id="loanBalance" value="395658" oninput="runModel()">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm opacity-80 mb-1">Capital Gains Tax (%)</label>
-                        <input type="number" id="cgt" class="input-field" value="15" oninput="calculate()">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <label>Selling Costs (%)</label>
+                            <input type="number" id="sellingCostPct" value="8" step="0.1" oninput="runModel()">
+                        </div>
+                        <div class="input-group">
+                            <label>Primary Res? (2/5yr)</label>
+                            <select id="primaryRes" onchange="runModel()">
+                                <option value="No">No</option>
+                                <option value="Yes">Yes</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
 
-                <hr class="border-gray-700">
+                    <div class="section-title">RENTAL OPERATIONS</div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <label>Monthly Rent ($)</label>
+                            <input type="number" id="monthlyRent" value="2995" oninput="runModel()">
+                        </div>
+                        <div class="input-group">
+                            <label>Inflation (Annual %)</label>
+                            <input type="number" id="inflation" value="3" oninput="runModel()">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <label>Mortgage P&I ($)</label>
+                            <input type="number" id="mortgagePI" value="2683" oninput="runModel()">
+                        </div>
+                        <div class="input-group">
+                            <label>Taxes & Ins ($)</label>
+                            <input type="number" id="taxIns" value="940" oninput="runModel()">
+                        </div>
+                    </div>
+                    
+                    <div class="section-title">RESERVES & MARKET</div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <label>Maint/Capex/Vac (%)</label>
+                            <input type="number" id="operatingExpPct" value="15" oninput="runModel()">
+                        </div>
+                        <div class="input-group">
+                            <label>Stock ROI (%)</label>
+                            <input type="number" id="stockROI" value="7" oninput="runModel()">
+                        </div>
+                    </div>
 
-                <h2 class="text-xl font-semibold border-b border-gray-700 pb-2">Investment Outlook</h2>
-                
-                <div>
-                    <label class="block text-sm opacity-80 mb-1">Alternative ROI (if sold) (%)</label>
-                    <input type="range" id="roi" min="1" max="15" value="8" class="w-full" oninput="calculate()">
-                    <div class="flex justify-between text-xs mt-1"><span>1%</span><span id="roiVal" class="accent-blue font-bold">8%</span><span>15%</span></div>
-                </div>
-
-                <div>
-                    <label class="block text-sm opacity-80 mb-1">Annual Rent (Gross) ($)</label>
-                    <input type="number" id="annualRent" class="input-field" value="30000" oninput="calculate()">
-                </div>
-                
-                <div>
-                    <label class="block text-sm opacity-80 mb-1">Holding Period (Years)</label>
-                    <input type="number" id="years" class="input-field" value="10" oninput="calculate()">
+                    <div class="section-title">REFINANCE SCENARIO</div>
+                    <div class="input-group">
+                        <label>Refinance Now?</label>
+                        <select id="refiToggle" onchange="runModel()">
+                            <option value="No">No (Keep Current)</option>
+                            <option value="Yes">Yes (New Terms)</option>
+                        </select>
+                    </div>
+                    <div id="refiInputs" class="hidden space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="input-group">
+                                <label>New Rate (%)</label>
+                                <input type="number" id="newRate" value="6.0" step="0.1" oninput="runModel()">
+                            </div>
+                            <div class="input-group">
+                                <label>Paydown ($)</label>
+                                <input type="number" id="refiPaydown" value="50000" oninput="runModel()">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="lg:col-span-2 space-y-6">
+            <div class="lg:col-span-8 space-y-6">
                 
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="card border-l-4 border-blue-500">
+                        <div class="text-[10px] uppercase font-bold text-gray-400">Net Worth: Sell Now</div>
+                        <div id="sellYear10" class="text-2xl font-bold text-white mt-1">$0</div>
+                        <div class="text-[10px] text-gray-500">Includes invested proceeds</div>
+                    </div>
+                    <div class="card border-l-4 border-green-500">
+                        <div class="text-[10px] uppercase font-bold text-gray-400">Net Worth: Rent Out</div>
+                        <div id="rentYear10" class="text-2xl font-bold text-white mt-1">$0</div>
+                        <div class="text-[10px] text-gray-500">Equity + Cash Flow</div>
+                    </div>
+                    <div class="card bg-brand flex flex-col items-center justify-center text-center">
+                        <div class="text-[10px] uppercase font-bold text-white/70">Recommendation</div>
+                        <div id="recommendation" class="text-xl font-bold text-white">ANALYZING...</div>
+                    </div>
+                </div>
+
+                <div class="card h-[400px]">
+                    <canvas id="growthChart"></canvas>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="card p-6 text-center border-t-4 border-blue-600">
-                        <div class="text-gray-400 text-sm uppercase tracking-wider">Net Worth: Sell Now</div>
-                        <div id="sellResult" class="text-3xl font-bold mt-2">$0</div>
-                        <div class="text-xs text-gray-500 mt-1">Invested proceeds over <span class="yearsDisplay">10</span> years</div>
+                    <div class="card bg-[#1c2128]">
+                        <h4 class="text-white font-bold mb-2">Advanced Real Estate Training</h4>
+                        <p class="text-xs text-gray-400 mb-4">Get our full Google Sheets model and advanced disposition strategies.</p>
+                        <script async data-uid="eeff810649" src="https://rvfinancialfreedom.kit.com/eeff810649/index.js"></script>
                     </div>
-                    <div class="card p-6 text-center border-t-4 border-green-500">
-                        <div class="text-gray-400 text-sm uppercase tracking-wider">Net Worth: Rent Out</div>
-                        <div id="rentResult" class="text-3xl font-bold mt-2">$0</div>
-                        <div class="text-xs text-gray-500 mt-1">Equity + Cashflow over <span class="yearsDisplay">10</span> years</div>
+                    <div class="card flex flex-col justify-center border-dashed border-2">
+                        <p class="text-center text-sm italic">"Don't just sell your legacy. Calculate its future value."</p>
                     </div>
-                </div>
-
-                <div class="card p-6">
-                    <h3 class="text-lg font-medium mb-4">Wealth Accumulation Over Time</h3>
-                    <canvas id="comparisonChart" height="250"></canvas>
-                </div>
-
-                <div class="card p-6 flex flex-col items-center justify-center text-center">
-                    <h3 class="text-xl font-bold mb-4">Want the full spreadsheet model?</h3>
-                    <p class="text-gray-400 mb-4 max-w-md">Join our community to get the advanced version of this "Sell vs Rent" model and start your journey to financial freedom.</p>
-                    <script async data-uid="eeff810649" src="https://rvfinancialfreedom.kit.com/eeff810649/index.js"></script>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        let myChart;
+        let chartInstance;
 
-        function calculate() {
-            // Get Input Values
-            const marketValue = parseFloat(document.getElementById('marketValue').value) || 0;
-            const mortgage = parseFloat(document.getElementById('mortgageBalance').value) || 0;
-            const sellCostPct = parseFloat(document.getElementById('sellingCosts').value) / 100;
-            const cgtPct = parseFloat(document.getElementById('cgt').value) / 100;
-            const roi = parseFloat(document.getElementById('roi').value) / 100;
-            const annualRent = parseFloat(document.getElementById('annualRent').value) || 0;
-            const years = parseInt(document.getElementById('years').value) || 1;
-
-            document.getElementById('roiVal').innerText = (roi * 100).toFixed(0) + '%';
-            document.querySelectorAll('.yearsDisplay').forEach(el => el.innerText = years);
-
-            // Logic: Sell Scenario
-            const grossProceeds = marketValue - mortgage;
-            const sellingCosts = marketValue * sellCostPct;
-            const taxableGain = Math.max(0, (marketValue - sellingCosts) - (marketValue * 0.8)); // Simple CGT logic matching excel placeholder
-            const netProceeds = grossProceeds - sellingCosts - (taxableGain * cgtPct);
+        function runModel() {
+            // Inputs 
+            const salePrice = parseFloat(document.getElementById('salePrice').value);
+            const loanBalance = parseFloat(document.getElementById('loanBalance').value);
+            const sellingCostPct = parseFloat(document.getElementById('sellingCostPct').value) / 100;
+            const primaryRes = document.getElementById('primaryRes').value === 'Yes';
+            const stockROI = parseFloat(document.getElementById('stockROI').value) / 100;
+            const monthlyRent = parseFloat(document.getElementById('monthlyRent').value);
+            const inflation = parseFloat(document.getElementById('inflation').value) / 100;
+            const opExpPct = parseFloat(document.getElementById('operatingExpPct').value) / 100;
+            const taxIns = parseFloat(document.getElementById('taxIns').value);
+            const mortgagePI = parseFloat(document.getElementById('mortgagePI').value);
             
-            // Logic: Rent Scenario
-            const annualExpenses = annualRent * 0.35; // Management, maintenance, insurance (approx 35%)
-            const netCashFlow = annualRent - annualExpenses;
-            const propertyAppreciationRate = 0.04; // Standard 4%
+            const refiToggle = document.getElementById('refiToggle').value === 'Yes';
+            document.getElementById('refiInputs').classList.toggle('hidden', !refiToggle);
 
-            let sellData = [];
-            let rentData = [];
+            // SELL Logic 
+            const grossProceeds = salePrice - (salePrice * sellingCostPct) - loanBalance;
+            const capitalGain = Math.max(0, (salePrice * (1-sellingCostPct)) - (salePrice * 0.8)); // Simple tax base estimation
+            const exclusion = primaryRes ? 250000 : 0;
+            const taxableGain = Math.max(0, capitalGain - exclusion);
+            const netProceeds = grossProceeds - (taxableGain * 0.20); // 20% CGT
+
+            // RENT Logic (Monthly Iteration)
+            let sellHistory = [];
+            let rentHistory = [];
             let labels = [];
-
-            for (let i = 0; i <= years; i++) {
-                labels.push('Year ' + i);
-                
-                // Sell Value calculation (Compound Interest)
-                const sValue = netProceeds * Math.pow(1 + roi, i);
-                sellData.push(sValue.toFixed(0));
-
-                // Rent Value calculation (Property growth + cumulative cash flow)
-                const currentPropValue = marketValue * Math.pow(1 + propertyAppreciationRate, i);
-                const currentEquity = currentPropValue - mortgage;
-                const cumulativeCashFlow = netCashFlow * i;
-                rentData.push((currentEquity + cumulativeCashFlow).toFixed(0));
+            
+            let cumulativeCashFlow = 0;
+            let currentLoan = loanBalance;
+            if(refiToggle) {
+                currentLoan -= parseFloat(document.getElementById('refiPaydown').value);
             }
 
-            document.getElementById('sellResult').innerText = '$' + parseFloat(sellData[years]).toLocaleString();
-            document.getElementById('rentResult').innerText = '$' + parseFloat(rentData[years]).toLocaleString();
+            for (let y = 0; y <= 30; y++) {
+                labels.push('Y' + y);
+                
+                // Sell Growth
+                sellHistory.push(Math.round(netProceeds * Math.pow(1 + stockROI, y)));
 
-            updateChart(labels, sellData, rentData);
+                // Rent Growth
+                const inflatedRent = monthlyRent * Math.pow(1 + inflation, y);
+                const inflatedExp = (taxIns + 60) * Math.pow(1 + inflation, y); // Includes basic utilities
+                const variableExp = inflatedRent * opExpPct;
+                const annualCashFlow = (inflatedRent - inflatedExp - variableExp - mortgagePI) * 12;
+                
+                cumulativeCashFlow += annualCashFlow;
+                
+                const currentPropertyValue = salePrice * Math.pow(1 + inflation, y);
+                const equity = currentPropertyValue - currentLoan; 
+                // Simple loan paydown logic: reduces by 2% of principal annually for visualization
+                currentLoan = Math.max(0, currentLoan * 0.98); 
+                
+                rentHistory.push(Math.round(equity + cumulativeCashFlow));
+            }
+
+            // Update UI
+            const y10Sell = sellHistory[10];
+            const y10Rent = rentHistory[10];
+            document.getElementById('sellYear10').innerText = '$' + y10Sell.toLocaleString();
+            document.getElementById('rentYear10').innerText = '$' + y10Rent.toLocaleString();
+            
+            const delta = y10Rent - y10Sell;
+            document.getElementById('deltaResult').innerText = (delta > 0 ? '+' : '') + '$' + delta.toLocaleString();
+            document.getElementById('deltaResult').className = 'text-xl font-bold ' + (delta > 0 ? 'text-green-400' : 'text-red-400');
+            document.getElementById('recommendation').innerText = delta > 0 ? 'RENT OUT' : 'SELL NOW';
+
+            updateChart(labels, sellHistory, rentHistory);
         }
 
         function updateChart(labels, sellData, rentData) {
-            const ctx = document.getElementById('comparisonChart').getContext('2d');
-            
-            if (myChart) { myChart.destroy(); }
+            const ctx = document.getElementById('growthChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
 
-            myChart = new Chart(ctx, {
+            chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [
-                        {
-                            label: 'Selling & Investing',
-                            data: sellData,
-                            borderColor: '#0052FF',
-                            backgroundColor: 'rgba(0, 82, 255, 0.1)',
-                            fill: true,
-                            tension: 0.3
-                        },
-                        {
-                            label: 'Renting Out',
-                            data: rentData,
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            fill: true,
-                            tension: 0.3
-                        }
+                        { label: 'Sell & Invest', data: sellData, borderColor: '#0052FF', backgroundColor: 'rgba(0, 82, 255, 0.1)', fill: true, tension: 0.4 },
+                        { label: 'Rent Out', data: rentData, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.4 }
                     ]
                 },
                 options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { labels: { color: '#ffffff' } },
-                        tooltip: { mode: 'index', intersect: false }
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { labels: { color: '#8b949e', font: { size: 10 } } },
+                        tooltip: { backgroundColor: '#161B22', titleColor: '#fff', bodyColor: '#ccc', borderColor: '#30363d', borderWidth: 1 }
                     },
                     scales: {
-                        y: { ticks: { color: '#888', callback: v => '$' + v/1000 + 'k' }, grid: { color: '#333' } },
-                        x: { ticks: { color: '#888' }, grid: { display: false } }
+                        y: { grid: { color: '#30363d' }, ticks: { color: '#8b949e', callback: (v) => '$' + v/1000 + 'k' } },
+                        x: { grid: { display: false }, ticks: { color: '#8b949e' } }
                     }
                 }
             });
         }
 
-        // Initialize
-        calculate();
+        runModel();
     </script>
 </body>
 </html>
