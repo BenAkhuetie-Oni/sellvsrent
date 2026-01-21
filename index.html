@@ -1,284 +1,201 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sell vs. Rent Pro Model | RV Financial Freedom</title>
-    
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R1KF7GYGF"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-3R1KF7GYGF');
-    </script>
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --brand-blue: #0052FF;
-            --bg-dark: #0B0E14;
-            --card-bg: #161B22;
-            --border: #30363d;
-        }
-        body { background-color: var(--bg-dark); color: #c9d1d9; font-family: 'Inter', sans-serif; }
-        .accent-blue { color: var(--brand-blue); }
-        .bg-brand { background-color: var(--brand-blue); }
-        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
-        .input-group { margin-bottom: 1rem; }
-        label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8b949e; margin-bottom: 0.25rem; }
-        input, select { 
-            background: #0d1117; border: 1px solid var(--border); color: white; 
-            padding: 8px 12px; border-radius: 6px; width: 100%; font-size: 0.9rem;
-        }
-        input:focus { outline: none; border-color: var(--brand-blue); ring: 1px solid var(--brand-blue); }
-        .section-title { font-size: 0.85rem; font-weight: 700; color: white; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1rem; margin-top: 1.5rem; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sell vs Rent Calculator — Outdoor Financial Freedom</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
-<body class="p-4 md:p-10">
 
-    <div class="max-w-7xl mx-auto">
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
-            <div>
-                <h1 class="text-3xl font-black italic tracking-tighter text-white">RV FINANCIAL <span class="accent-blue">FREEDOM</span></h1>
-                <p class="text-sm opacity-60">Strategic Real Estate Disposition Engine</p>
-            </div>
-            <div class="flex gap-4">
-                <div class="text-right">
-                    <div class="text-xs uppercase text-gray-500">10-Year Delta</div>
-                    <div id="deltaResult" class="text-xl font-bold text-green-400">+$0</div>
-                </div>
-            </div>
-        </header>
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
-            <div class="lg:col-span-4 space-y-4 max-h-[85vh] overflow-y-auto pr-2 custom-scrollbar">
-                
-                <div class="card">
-                    <div class="section-title mt-0">PROPERTY & DISPOSITION</div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="input-group">
-                            <label>Sale Price ($)</label>
-                            <input type="number" id="salePrice" value="456000" oninput="runModel()">
-                        </div>
-                        <div class="input-group">
-                            <label>Loan Balance ($)</label>
-                            <input type="number" id="loanBalance" value="395658" oninput="runModel()">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="input-group">
-                            <label>Selling Costs (%)</label>
-                            <input type="number" id="sellingCostPct" value="8" step="0.1" oninput="runModel()">
-                        </div>
-                        <div class="input-group">
-                            <label>Primary Res? (2/5yr)</label>
-                            <select id="primaryRes" onchange="runModel()">
-                                <option value="No">No</option>
-                                <option value="Yes">Yes</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="section-title">RENTAL OPERATIONS</div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="input-group">
-                            <label>Monthly Rent ($)</label>
-                            <input type="number" id="monthlyRent" value="2995" oninput="runModel()">
-                        </div>
-                        <div class="input-group">
-                            <label>Inflation (Annual %)</label>
-                            <input type="number" id="inflation" value="3" oninput="runModel()">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="input-group">
-                            <label>Mortgage P&I ($)</label>
-                            <input type="number" id="mortgagePI" value="2683" oninput="runModel()">
-                        </div>
-                        <div class="input-group">
-                            <label>Taxes & Ins ($)</label>
-                            <input type="number" id="taxIns" value="940" oninput="runModel()">
-                        </div>
-                    </div>
-                    
-                    <div class="section-title">RESERVES & MARKET</div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="input-group">
-                            <label>Maint/Capex/Vac (%)</label>
-                            <input type="number" id="operatingExpPct" value="15" oninput="runModel()">
-                        </div>
-                        <div class="input-group">
-                            <label>Stock ROI (%)</label>
-                            <input type="number" id="stockROI" value="7" oninput="runModel()">
-                        </div>
-                    </div>
-
-                    <div class="section-title">REFINANCE SCENARIO</div>
-                    <div class="input-group">
-                        <label>Refinance Now?</label>
-                        <select id="refiToggle" onchange="runModel()">
-                            <option value="No">No (Keep Current)</option>
-                            <option value="Yes">Yes (New Terms)</option>
-                        </select>
-                    </div>
-                    <div id="refiInputs" class="hidden space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="input-group">
-                                <label>New Rate (%)</label>
-                                <input type="number" id="newRate" value="6.0" step="0.1" oninput="runModel()">
-                            </div>
-                            <div class="input-group">
-                                <label>Paydown ($)</label>
-                                <input type="number" id="refiPaydown" value="50000" oninput="runModel()">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="lg:col-span-8 space-y-6">
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="card border-l-4 border-blue-500">
-                        <div class="text-[10px] uppercase font-bold text-gray-400">Net Worth: Sell Now</div>
-                        <div id="sellYear10" class="text-2xl font-bold text-white mt-1">$0</div>
-                        <div class="text-[10px] text-gray-500">Includes invested proceeds</div>
-                    </div>
-                    <div class="card border-l-4 border-green-500">
-                        <div class="text-[10px] uppercase font-bold text-gray-400">Net Worth: Rent Out</div>
-                        <div id="rentYear10" class="text-2xl font-bold text-white mt-1">$0</div>
-                        <div class="text-[10px] text-gray-500">Equity + Cash Flow</div>
-                    </div>
-                    <div class="card bg-brand flex flex-col items-center justify-center text-center">
-                        <div class="text-[10px] uppercase font-bold text-white/70">Recommendation</div>
-                        <div id="recommendation" class="text-xl font-bold text-white">ANALYZING...</div>
-                    </div>
-                </div>
-
-                <div class="card h-[400px]">
-                    <canvas id="growthChart"></canvas>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="card bg-[#1c2128]">
-                        <h4 class="text-white font-bold mb-2">Advanced Real Estate Training</h4>
-                        <p class="text-xs text-gray-400 mb-4">Get our full Google Sheets model and advanced disposition strategies.</p>
-                        <script async data-uid="eeff810649" src="https://rvfinancialfreedom.kit.com/eeff810649/index.js"></script>
-                    </div>
-                    <div class="card flex flex-col justify-center border-dashed border-2">
-                        <p class="text-center text-sm italic">"Don't just sell your legacy. Calculate its future value."</p>
-                    </div>
-                </div>
-            </div>
+<body>
+  <header class="wrap header">
+    <div class="brand">
+      <div class="brandText">
+        <div class="title">Sell vs Rent Calculator</div>
+        <div class="subtitle">
+          Made by <a class="link" href="#">Outdoor Financial Freedom</a>
+          · Net Worth Impact = Home Equity + Stock Portfolio
         </div>
+      </div>
+    </div>
+    <p class="disclaimer">
+      Educational tool based on standard financial modeling. Not professional financial advice.
+    </p>
+  </header>
+
+  <main class="wrap grid">
+    <div class="col">
+      <section class="card">
+        <h2>Step 1: Required Inputs</h2>
+        
+        <h3 class="section-label">Home Sale Inputs</h3>
+        <div class="grid2">
+          <label>
+            Date of Home Sale
+            <input id="saleDate" type="date" />
+          </label>
+          <label>
+            Home Sale Price ($)
+            <input id="salePrice" type="number" min="0" step="1000" placeholder="456000" />
+          </label>
+        </div>
+
+        <h3 class="section-label">Current Mortgage Inputs</h3>
+        <div class="grid2">
+          <label>
+            Remaining Loan Balance ($)
+            <input id="loanBal" type="number" min="0" step="100" placeholder="395658" />
+          </label>
+          <label>
+            Current Mortgage Rate (%)
+            <input id="mortgageRate" type="number" min="0" step="0.125" placeholder="6.875" />
+          </label>
+          <label>
+            Loan End Date
+            <input id="loanEndDate" type="date" />
+          </label>
+          <label>
+            Monthly P&I Payment ($)
+            <input id="monthlyPI" type="number" min="0" step="10" placeholder="2683" />
+          </label>
+          <label>
+            Monthly Taxes & Insurance ($)
+            <input id="monthlyTaxIns" type="number" min="0" step="10" placeholder="940" />
+          </label>
+          <label>
+            Monthly HOA Payment ($)
+            <input id="monthlyHOA" type="number" min="0" step="10" value="0" />
+          </label>
+        </div>
+
+        <h3 class="section-label">Rental Inputs</h3>
+        <div class="grid2">
+          <label>
+            Estimated Monthly Rent ($)
+            <input id="monthlyRent" type="number" min="0" step="50" placeholder="2995" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="calcBtn" class="primary">Calculate Results</button>
+          <button id="resetBtn" class="secondary">Reset</button>
+        </div>
+
+        <details class="accordion">
+          <summary>Step 2: Optional Inputs</summary>
+          
+          <div class="padtop">
+            <h3 class="section-label small-label">Home Sale Assumptions</h3>
+            <div class="grid2">
+              <label>
+                Seller Closing Costs (% of Price)
+                <input id="sellingCostsPct" type="number" min="0" step="0.1" value="8.0" />
+              </label>
+              <label>
+                Original Purchase Price ($ for Basis)
+                <input id="originalPrice" type="number" min="0" step="1000" placeholder="Optional" />
+              </label>
+            </div>
+
+            <h3 class="section-label small-label">Rental Expenses</h3>
+            <div class="grid2">
+              <label>Repairs & Maint (% of Rent)<input id="maintPct" type="number" step="0.1" value="5.0" /></label>
+              <label>CapEx (% of Rent)<input id="capexPct" type="number" step="0.1" value="5.0" /></label>
+              <label>Vacancy (% of Rent)<input id="vacancyPct" type="number" step="0.1" value="5.0" /></label>
+              <label>Prop Mgmt Fee (% of Rent)<input id="mgmtPct" type="number" step="0.1" value="0.0" /></label>
+              <label>Landlord Utilities ($/mo)<input id="landlordUtils" type="number" step="10" value="60" /></label>
+              <label>Other Monthly Expenses ($/mo)<input id="otherExp" type="number" step="10" value="0" /></label>
+            </div>
+
+            <h3 class="section-label small-label">Tax Inputs</h3>
+            <div class="grid2">
+              <label>Filing Status
+                <select id="filingStatus">
+                  <option value="married">Married</option>
+                  <option value="single">Single</option>
+                </select>
+              </label>
+              <label>Primary Residence ≥ 2 of last 5 yrs?
+                <select id="primaryRes">
+                  <option value="yes">Yes</option>
+                  <option value="no" selected>No</option>
+                </select>
+              </label>
+              <label>Capital Gains Tax Rate (%)<input id="capGainsRate" type="number" step="0.1" value="20.0" /></label>
+              <label>Rental Income Tax Rate (%)<input id="rentalTaxRate" type="number" step="0.1" value="15.0" /></label>
+            </div>
+
+            <h3 class="section-label small-label">Market & Inflation</h3>
+            <div class="grid2">
+              <label>Annual Stock Return (%)<input id="stockReturn" type="number" step="0.1" value="7.0" /></label>
+              <label>Inflation Rate (%)<input id="inflationRate" type="number" step="0.1" value="2.5" /></label>
+            </div>
+
+            <h3 class="section-label small-label">Optional: Refinance Before Renting</h3>
+            <label class="checkbox-label">
+              <input type="checkbox" id="doRefi" />
+              Intend to Refinance?
+            </label>
+            <div id="refiInputs" class="grid2 hidden mt-2">
+              <label>New Loan Duration (Years)<input id="refiYears" type="number" value="30" /></label>
+              <label>One-time Paydown ($)<input id="refiPaydown" type="number" value="50000" /></label>
+              <label>Refi Closing Costs (% of Loan)<input id="refiCostPct" type="number" step="0.1" value="2.5" /></label>
+              <label>New Mortgage Rate (%)<input id="refiRate" type="number" step="0.125" value="6.0" /></label>
+            </div>
+          </div>
+        </details>
+      </section>
     </div>
 
-    <script>
-        let chartInstance;
+    <section class="card">
+      <h2>Results</h2>
+      <div id="resultTop" class="resultTop muted">
+        Enter inputs and click <b>Calculate Results</b>.
+      </div>
 
-        function runModel() {
-            // Inputs 
-            const salePrice = parseFloat(document.getElementById('salePrice').value);
-            const loanBalance = parseFloat(document.getElementById('loanBalance').value);
-            const sellingCostPct = parseFloat(document.getElementById('sellingCostPct').value) / 100;
-            const primaryRes = document.getElementById('primaryRes').value === 'Yes';
-            const stockROI = parseFloat(document.getElementById('stockROI').value) / 100;
-            const monthlyRent = parseFloat(document.getElementById('monthlyRent').value);
-            const inflation = parseFloat(document.getElementById('inflation').value) / 100;
-            const opExpPct = parseFloat(document.getElementById('operatingExpPct').value) / 100;
-            const taxIns = parseFloat(document.getElementById('taxIns').value);
-            const mortgagePI = parseFloat(document.getElementById('mortgagePI').value);
-            
-            const refiToggle = document.getElementById('refiToggle').value === 'Yes';
-            document.getElementById('refiInputs').classList.toggle('hidden', !refiToggle);
+      <div class="pillRow">
+        <div class="pill" id="recPill">—</div>
+        <div class="pill soft" id="diffPill">—</div>
+      </div>
 
-            // SELL Logic 
-            const grossProceeds = salePrice - (salePrice * sellingCostPct) - loanBalance;
-            const capitalGain = Math.max(0, (salePrice * (1-sellingCostPct)) - (salePrice * 0.8)); // Simple tax base estimation
-            const exclusion = primaryRes ? 250000 : 0;
-            const taxableGain = Math.max(0, capitalGain - exclusion);
-            const netProceeds = grossProceeds - (taxableGain * 0.20); // 20% CGT
+      <div class="chartCard">
+        <div class="chartHeader">
+          <div>
+            <div class="chartTitle">Net Worth Projection (30 Years)</div>
+            <div class="chartSub">Sell (Stock Growth) vs Rent (Equity + Cash Flow Investment)</div>
+          </div>
+        </div>
+        <div class="chartWrap">
+          <canvas id="nwChart"></canvas>
+        </div>
+      </div>
 
-            // RENT Logic (Monthly Iteration)
-            let sellHistory = [];
-            let rentHistory = [];
-            let labels = [];
-            
-            let cumulativeCashFlow = 0;
-            let currentLoan = loanBalance;
-            if(refiToggle) {
-                currentLoan -= parseFloat(document.getElementById('refiPaydown').value);
-            }
+      <div class="tableWrap">
+        <table id="resultsTable" class="hidden">
+          <thead>
+            <tr>
+              <th>Year</th>
+              <th>Winner</th>
+              <th>Sell Net Worth</th>
+              <th>Rent Net Worth</th>
+              <th>Diff ($)</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+      
+      <div class="actions">
+        <button id="csvBtn" class="secondary" disabled>Download CSV</button>
+      </div>
+    </section>
+  </main>
 
-            for (let y = 0; y <= 30; y++) {
-                labels.push('Y' + y);
-                
-                // Sell Growth
-                sellHistory.push(Math.round(netProceeds * Math.pow(1 + stockROI, y)));
+  <footer class="wrap footer">
+    <span>© <span id="yearNow"></span> Outdoor Financial Freedom</span>
+  </footer>
 
-                // Rent Growth
-                const inflatedRent = monthlyRent * Math.pow(1 + inflation, y);
-                const inflatedExp = (taxIns + 60) * Math.pow(1 + inflation, y); // Includes basic utilities
-                const variableExp = inflatedRent * opExpPct;
-                const annualCashFlow = (inflatedRent - inflatedExp - variableExp - mortgagePI) * 12;
-                
-                cumulativeCashFlow += annualCashFlow;
-                
-                const currentPropertyValue = salePrice * Math.pow(1 + inflation, y);
-                const equity = currentPropertyValue - currentLoan; 
-                // Simple loan paydown logic: reduces by 2% of principal annually for visualization
-                currentLoan = Math.max(0, currentLoan * 0.98); 
-                
-                rentHistory.push(Math.round(equity + cumulativeCashFlow));
-            }
-
-            // Update UI
-            const y10Sell = sellHistory[10];
-            const y10Rent = rentHistory[10];
-            document.getElementById('sellYear10').innerText = '$' + y10Sell.toLocaleString();
-            document.getElementById('rentYear10').innerText = '$' + y10Rent.toLocaleString();
-            
-            const delta = y10Rent - y10Sell;
-            document.getElementById('deltaResult').innerText = (delta > 0 ? '+' : '') + '$' + delta.toLocaleString();
-            document.getElementById('deltaResult').className = 'text-xl font-bold ' + (delta > 0 ? 'text-green-400' : 'text-red-400');
-            document.getElementById('recommendation').innerText = delta > 0 ? 'RENT OUT' : 'SELL NOW';
-
-            updateChart(labels, sellHistory, rentHistory);
-        }
-
-        function updateChart(labels, sellData, rentData) {
-            const ctx = document.getElementById('growthChart').getContext('2d');
-            if (chartInstance) chartInstance.destroy();
-
-            chartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'Sell & Invest', data: sellData, borderColor: '#0052FF', backgroundColor: 'rgba(0, 82, 255, 0.1)', fill: true, tension: 0.4 },
-                        { label: 'Rent Out', data: rentData, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.4 }
-                    ]
-                },
-                options: {
-                    maintainAspectRatio: false,
-                    plugins: { 
-                        legend: { labels: { color: '#8b949e', font: { size: 10 } } },
-                        tooltip: { backgroundColor: '#161B22', titleColor: '#fff', bodyColor: '#ccc', borderColor: '#30363d', borderWidth: 1 }
-                    },
-                    scales: {
-                        y: { grid: { color: '#30363d' }, ticks: { color: '#8b949e', callback: (v) => '$' + v/1000 + 'k' } },
-                        x: { grid: { display: false }, ticks: { color: '#8b949e' } }
-                    }
-                }
-            });
-        }
-
-        runModel();
-    </script>
+  <script src="script.js"></script>
 </body>
 </html>
