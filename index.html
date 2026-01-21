@@ -14,30 +14,26 @@
       <div class="brandText">
         <div class="title">Sell vs Rent Calculator</div>
         <div class="subtitle">
-          Made by <a class="link" href="#">Outdoor Financial Freedom</a>
-          · Net Worth Impact = Home Equity + Stock Portfolio
+          Outdoor Financial Freedom · Net Worth Impact Model
         </div>
       </div>
     </div>
-    <p class="disclaimer">
-      Educational tool based on standard financial modeling. Not professional financial advice.
-    </p>
   </header>
 
   <main class="wrap grid">
     <div class="col">
       <section class="card">
-        <h2>Step 1: Required Inputs</h2>
+        <h2>Required Inputs</h2>
         
         <h3 class="section-label">Home Sale Inputs</h3>
         <div class="grid2">
           <label>
             Date of Home Sale
-            <input id="saleDate" type="date" />
+            <input id="saleDate" type="date" value="2026-02-01" />
           </label>
           <label>
             Home Sale Price ($)
-            <input id="salePrice" type="number" min="0" step="1000" placeholder="456000" />
+            <input id="salePrice" type="number" min="0" step="1000" value="456000" />
           </label>
         </div>
 
@@ -45,23 +41,23 @@
         <div class="grid2">
           <label>
             Remaining Loan Balance ($)
-            <input id="loanBal" type="number" min="0" step="100" placeholder="395658" />
+            <input id="loanBal" type="number" min="0" step="100" value="395658.19" />
           </label>
           <label>
             Current Mortgage Rate (%)
-            <input id="mortgageRate" type="number" min="0" step="0.125" placeholder="6.875" />
+            <input id="mortgageRate" type="number" min="0" step="0.125" value="6.875" />
           </label>
           <label>
             Loan End Date
-            <input id="loanEndDate" type="date" />
+            <input id="loanEndDate" type="date" value="2053-03-01" />
           </label>
           <label>
             Monthly P&I Payment ($)
-            <input id="monthlyPI" type="number" min="0" step="10" placeholder="2683" />
+            <input id="monthlyPI" type="number" min="0" step="10" value="2683.55" />
           </label>
           <label>
             Monthly Taxes & Insurance ($)
-            <input id="monthlyTaxIns" type="number" min="0" step="10" placeholder="940" />
+            <input id="monthlyTaxIns" type="number" min="0" step="10" value="939.86" />
           </label>
           <label>
             Monthly HOA Payment ($)
@@ -73,17 +69,16 @@
         <div class="grid2">
           <label>
             Estimated Monthly Rent ($)
-            <input id="monthlyRent" type="number" min="0" step="50" placeholder="2995" />
+            <input id="monthlyRent" type="number" min="0" step="50" value="2995" />
           </label>
         </div>
 
         <div class="actions">
           <button id="calcBtn" class="primary">Calculate Results</button>
-          <button id="resetBtn" class="secondary">Reset</button>
         </div>
 
         <details class="accordion">
-          <summary>Step 2: Optional Inputs</summary>
+          <summary>Step 2: Optional Inputs (Advanced)</summary>
           
           <div class="padtop">
             <h3 class="section-label small-label">Home Sale Assumptions</h3>
@@ -93,19 +88,23 @@
                 <input id="sellingCostsPct" type="number" min="0" step="0.1" value="8.0" />
               </label>
               <label>
-                Original Purchase Price ($ for Basis)
-                <input id="originalPrice" type="number" min="0" step="1000" placeholder="Optional" />
+                Original Purchase Price ($ for Tax Basis)
+                <input id="originalPrice" type="number" min="0" step="1000" placeholder="Defaults to Sale Price" />
               </label>
             </div>
 
-            <h3 class="section-label small-label">Rental Expenses</h3>
+            <h3 class="section-label small-label">Rental Expenses (% of Rent)</h3>
             <div class="grid2">
-              <label>Repairs & Maint (% of Rent)<input id="maintPct" type="number" step="0.1" value="5.0" /></label>
-              <label>CapEx (% of Rent)<input id="capexPct" type="number" step="0.1" value="5.0" /></label>
-              <label>Vacancy (% of Rent)<input id="vacancyPct" type="number" step="0.1" value="5.0" /></label>
-              <label>Prop Mgmt Fee (% of Rent)<input id="mgmtPct" type="number" step="0.1" value="0.0" /></label>
-              <label>Landlord Utilities ($/mo)<input id="landlordUtils" type="number" step="10" value="60" /></label>
-              <label>Other Monthly Expenses ($/mo)<input id="otherExp" type="number" step="10" value="0" /></label>
+              <label>Repairs & Maint (%)<input id="maintPct" type="number" step="0.1" value="1.0" /></label>
+              <label>CapEx (%)<input id="capexPct" type="number" step="0.1" value="1.0" /></label>
+              <label>Vacancy (%)<input id="vacancyPct" type="number" step="0.1" value="5.0" /></label>
+              <label>Prop Mgmt Fee (%)<input id="mgmtPct" type="number" step="0.1" value="0.0" /></label>
+            </div>
+            
+            <h3 class="section-label small-label">Rental Expenses (Fixed $)</h3>
+            <div class="grid2">
+               <label>Landlord Utilities ($/mo)<input id="landlordUtils" type="number" step="10" value="0" /></label>
+               <label>Other Monthly Expenses ($/mo)<input id="otherExp" type="number" step="10" value="0" /></label>
             </div>
 
             <h3 class="section-label small-label">Tax Inputs</h3>
@@ -118,8 +117,8 @@
               </label>
               <label>Primary Residence ≥ 2 of last 5 yrs?
                 <select id="primaryRes">
-                  <option value="yes">Yes</option>
-                  <option value="no" selected>No</option>
+                  <option value="yes" selected>Yes</option>
+                  <option value="no">No</option>
                 </select>
               </label>
               <label>Capital Gains Tax Rate (%)<input id="capGainsRate" type="number" step="0.1" value="20.0" /></label>
@@ -131,65 +130,80 @@
               <label>Annual Stock Return (%)<input id="stockReturn" type="number" step="0.1" value="7.0" /></label>
               <label>Inflation Rate (%)<input id="inflationRate" type="number" step="0.1" value="2.5" /></label>
             </div>
-
-            <h3 class="section-label small-label">Optional: Refinance Before Renting</h3>
-            <label class="checkbox-label">
-              <input type="checkbox" id="doRefi" />
-              Intend to Refinance?
-            </label>
-            <div id="refiInputs" class="grid2 hidden mt-2">
-              <label>New Loan Duration (Years)<input id="refiYears" type="number" value="30" /></label>
-              <label>One-time Paydown ($)<input id="refiPaydown" type="number" value="50000" /></label>
-              <label>Refi Closing Costs (% of Loan)<input id="refiCostPct" type="number" step="0.1" value="2.5" /></label>
-              <label>New Mortgage Rate (%)<input id="refiRate" type="number" step="0.125" value="6.0" /></label>
-            </div>
           </div>
         </details>
       </section>
     </div>
 
-    <section class="card">
-      <h2>Results</h2>
-      <div id="resultTop" class="resultTop muted">
-        Enter inputs and click <b>Calculate Results</b>.
-      </div>
+    <div class="col">
+      <section class="card">
+        <h2>Results</h2>
+        <div id="resultTop" class="resultTop muted">
+          Review the comparison below.
+        </div>
 
-      <div class="pillRow">
-        <div class="pill" id="recPill">—</div>
-        <div class="pill soft" id="diffPill">—</div>
-      </div>
+        <div class="pillRow">
+          <div class="pill" id="recPill">—</div>
+          <div class="pill soft" id="diffPill">—</div>
+        </div>
 
-      <div class="chartCard">
-        <div class="chartHeader">
-          <div>
-            <div class="chartTitle">Net Worth Projection (30 Years)</div>
-            <div class="chartSub">Sell (Stock Growth) vs Rent (Equity + Cash Flow Investment)</div>
+        <div class="chartCard">
+          <div class="chartHeader">
+            <div>
+              <div class="chartTitle">Net Worth Projection (30 Years)</div>
+              <div class="chartSub">Sell (Stock Growth) vs Rent (Equity + Cash Flow)</div>
+            </div>
+          </div>
+          <div class="chartWrap">
+            <canvas id="nwChart"></canvas>
           </div>
         </div>
-        <div class="chartWrap">
-          <canvas id="nwChart"></canvas>
-        </div>
-      </div>
 
-      <div class="tableWrap">
-        <table id="resultsTable" class="hidden">
-          <thead>
-            <tr>
-              <th>Year</th>
-              <th>Winner</th>
-              <th>Sell Net Worth</th>
-              <th>Rent Net Worth</th>
-              <th>Diff ($)</th>
-            </tr>
-          </thead>
-          <tbody id="resultsBody"></tbody>
-        </table>
-      </div>
+        <div class="tableWrap">
+          <table id="resultsTable" class="hidden">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Winner</th>
+                <th>Sell Net Worth</th>
+                <th>Rent Net Worth</th>
+                <th>Diff ($)</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </section>
       
-      <div class="actions">
-        <button id="csvBtn" class="secondary" disabled>Download CSV</button>
-      </div>
-    </section>
+      <section class="card mt-24">
+        <details>
+            <summary>Calculation Appendix (QC Data)</summary>
+            <div class="padtop">
+                <p class="small-text">Monthly breakdown matching Excel Appendix Logic.</p>
+                <div class="appendix-scroll">
+                    <table class="appendix-table">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Home Value</th>
+                                <th>Loan Bal</th>
+                                <th>Rent CF (Net)</th>
+                                <th>Sell Port. Bal</th>
+                                <th>Rent Port. Bal</th>
+                                <th>Sell NW</th>
+                                <th>Rent NW</th>
+                            </tr>
+                        </thead>
+                        <tbody id="appendixBody"></tbody>
+                    </table>
+                </div>
+                <div class="actions mt-24">
+                  <button id="csvBtn" class="secondary" disabled>Download Full CSV</button>
+                </div>
+            </div>
+        </details>
+      </section>
+    </div>
   </main>
 
   <footer class="wrap footer">

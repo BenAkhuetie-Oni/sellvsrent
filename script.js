@@ -1,31 +1,35 @@
-// Outdoor Financial Freedom - Sell vs Rent Calculator Logic
+// Outdoor Financial Freedom - Sell vs Rent Calculator
+// Logic matched to Excel Appendix Calculation
+
 const $ = (id) => document.getElementById(id);
 const fmtMoney = (n) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+const fmtDecimal = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 let chartInstance = null;
 
 function getInputs() {
-  // Helpers
   const val = (id) => Number($(id).value);
   const dateVal = (id) => new Date($(id).value);
 
+  // Parse percentages carefully (User inputs 8.0 for 8%)
   return {
-    // Required
     saleDate: dateVal('saleDate'),
     salePrice: val('salePrice'),
+    
     loanBal: val('loanBal'),
     mortgageRate: val('mortgageRate') / 100,
     loanEndDate: dateVal('loanEndDate'),
     monthlyPI: val('monthlyPI'),
     monthlyTaxIns: val('monthlyTaxIns'),
     monthlyHOA: val('monthlyHOA'),
+    
     monthlyRent: val('monthlyRent'),
-
-    // Optional - Sell
+    
+    // Optional
     sellingCostsPct: val('sellingCostsPct') / 100,
-    originalPrice: $( 'originalPrice' ).value ? val('originalPrice') : val('salePrice'), // Default to sale price if empty (no gain)
-
-    // Optional - Rent
+    originalPrice: $( 'originalPrice' ).value ? val('originalPrice') : val('salePrice'),
+    
+    // Rental Exp
     maintPct: val('maintPct') / 100,
     capexPct: val('capexPct') / 100,
     vacancyPct: val('vacancyPct') / 100,
@@ -33,328 +37,292 @@ function getInputs() {
     landlordUtils: val('landlordUtils'),
     otherExp: val('otherExp'),
 
-    // Taxes & Market
+    // Taxes/Market
     filingStatus: $('filingStatus').value,
     primaryRes: $('primaryRes').value === 'yes',
     capGainsRate: val('capGainsRate') / 100,
     rentalTaxRate: val('rentalTaxRate') / 100,
     stockReturn: val('stockReturn') / 100,
-    inflationRate: val('inflationRate') / 100,
-
-    // Refi
-    doRefi: $('doRefi').checked,
-    refiYears: val('refiYears'),
-    refiPaydown: val('refiPaydown'),
-    refiCostPct: val('refiCostPct') / 100,
-    refiRate: val('refiRate') / 100
+    inflationRate: val('inflationRate') / 100
   };
-}
-
-function calculateMortgagePmt(principal, annualRate, years) {
-  const r = annualRate / 12;
-  const n = years * 12;
-  if (r === 0) return principal / n;
-  return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
 }
 
 function runModel(inp) {
-  const months = 360; // 30 Years Analysis
+  const months = 360; 
   const monthlyStockRet = Math.pow(1 + inp.stockReturn, 1/12) - 1;
   const monthlyInflation = Math.pow(1 + inp.inflationRate, 1/12) - 1;
 
-  // --- SCENARIO 1: SELL ---
-  // Net Proceeds = Price - Closing Costs - Loan Bal - Capital Gains Tax
+  // --- 1. INITIAL SETUP (YEAR 0) ---
+  // Note: Excel "Year 0" usually represents the "Start State" before the transaction (Pre-sale).
+  // So Year 0 NW = Equity.
+  const initialEquity = inp.salePrice - inp.loanBal;
   
-  // Cap Gains Calc
+  // Calculate Net Proceeds (triggered at Month 1 in logic, but calculated for Sell Basis)
   const exclusion = inp.primaryRes ? (inp.filingStatus === 'married' ? 500000 : 250000) : 0;
-  const grossGain = inp.salePrice - (inp.salePrice * inp.sellingCostsPct) - inp.originalPrice; // Simplified basis
+  const grossGain = inp.salePrice - (inp.salePrice * inp.sellingCostsPct) - inp.originalPrice;
   const taxableGain = Math.max(0, grossGain - exclusion);
   const capGainsTax = taxableGain * inp.capGainsRate;
-
-  const sellProceeds = inp.salePrice - (inp.salePrice * inp.sellingCostsPct) - inp.loanBal - capGainsTax;
   
-  // Sell Scenario Arrays
-  let sellStockBal = Math.max(0, sellProceeds); // If negative proceeds, we assume 0 to invest
-  const sellNetWorth = []; // Only Stocks
+  const closingCosts = inp.salePrice * inp.sellingCostsPct;
+  const sellProceeds = inp.salePrice - closingCosts - inp.loanBal - capGainsTax;
 
-  // --- SCENARIO 2: RENT ---
-  let rentStockBal = 0;
-  // If we sell, we pay off loan. If we rent, we might Refi.
+  // --- 2. RUNNING VARIABLES ---
   
-  let currentLoanBal = inp.loanBal;
-  let currentPI = inp.monthlyPI;
-  let currentRate = inp.mortgageRate;
+  // RENT SCENARIO STATE
+  let r_HomeVal = inp.salePrice;
+  let r_LoanBal = inp.loanBal;
+  let r_Rent = inp.monthlyRent;
+  // Expenses that inflate
+  let r_TaxIns = inp.monthlyTaxIns;
+  let r_HOA = inp.monthlyHOA;
+  let r_Utils = inp.landlordUtils;
+  let r_Other = inp.otherExp;
   
-  // Handle Refi Logic
-  if (inp.doRefi) {
-    const refiCosts = (currentLoanBal - inp.refiPaydown) * inp.refiCostPct; // Cost on new loan amt? Or old? Excel says "Refinance Closing Costs (% of Refinanced Loan Amount)"
-    // New Loan Amount = Old Bal - Paydown + Costs
-    const newLoanAmount = currentLoanBal - inp.refiPaydown + refiCosts;
-    currentLoanBal = newLoanAmount;
-    currentRate = inp.refiRate;
-    currentPI = calculateMortgagePmt(newLoanAmount, currentRate, inp.refiYears);
-    
-    // In Rent Scenario, we "avoided" the negative cash flow of the paydown, so that money stays in our pocket?
-    // Actually, usually models assume we HAD the cash for paydown. 
-    // In "Sell", we keep that cash. In "Rent", we spent it.
-    // So Rent Stock Balance starts NEGATIVE or Sell starts Higher.
-    // To match Excel "Avoided Refinance Cost to invest" logic usually implies comparison baseline.
-    // We will decrement Rent Stock Bal by Paydown amount to represent the cash outlay.
-    rentStockBal -= inp.refiPaydown; 
-    rentStockBal -= (currentLoanBal * 0); // Logic check: Excel "Avoided Refinance Cost" usually means if you SELL, you avoid these costs.
-    // To keep simple: Sell Scenario gets the Paydown cash added to its starting balance because it didn't spend it.
-    sellStockBal += inp.refiPaydown; 
-  }
+  let r_StockBal = 0; // Starts at 0, accumulates cash flow
 
-  let homeValue = inp.salePrice;
-  let rent = inp.monthlyRent;
-  let taxIns = inp.monthlyTaxIns;
-  let hoa = inp.monthlyHOA;
-  let utils = inp.landlordUtils;
-  let other = inp.otherExp;
+  // SELL SCENARIO STATE
+  let s_StockBal = sellProceeds; // Starts with cash from sale
 
-  const rentNetWorth = [];
-
-  // Determine months remaining on current loan if not refi
+  // Date Logic for Loan Payoff
+  // Calculate months remaining on loan based on dates
   let monthsRem = 0;
-  if (!inp.doRefi && inp.loanEndDate && inp.saleDate) {
-    monthsRem = (inp.loanEndDate.getFullYear() - inp.saleDate.getFullYear()) * 12 + (inp.loanEndDate.getMonth() - inp.saleDate.getMonth());
-  } else if (inp.doRefi) {
-    monthsRem = inp.refiYears * 12;
+  if (inp.loanEndDate && inp.saleDate) {
+      // rough calc of months difference
+      monthsRem = (inp.loanEndDate.getFullYear() - inp.saleDate.getFullYear()) * 12;
+      monthsRem += (inp.loanEndDate.getMonth() - inp.saleDate.getMonth());
   }
+  
+  const monthData = [];
 
-  // --- MONTHLY LOOP ---
+  // PUSH YEAR 0 DATA (Start State)
+  monthData.push({
+      month: 0,
+      year: 0,
+      homeVal: inp.salePrice,
+      loanBal: inp.loanBal,
+      rentCF: 0,
+      sellPort: 0, // In Excel Year 0 this is usually 0 or Equity, but technically Sell Port doesn't exist yet
+      rentPort: 0,
+      sellNW: initialEquity, // Standardize comparison start point
+      rentNW: initialEquity
+  });
+
+  // --- 3. MONTHLY LOOP ---
   for (let m = 1; m <= months; m++) {
-    // 1. SELL SIDE UPDATE
-    sellStockBal *= (1 + monthlyStockRet);
-    sellNetWorth.push(sellStockBal);
-
-    // 2. RENT SIDE UPDATE
-    // A. Expenses
-    // Inflating items
-    const monthlyRent = rent;
-    const expMaint = monthlyRent * inp.maintPct;
-    const expCapex = monthlyRent * inp.capexPct;
-    const expVacancy = monthlyRent * inp.vacancyPct;
-    const expMgmt = monthlyRent * inp.mgmtPct;
     
-    // Fixed P&I, Inflating others
-    const totalExp = currentPI + taxIns + hoa + utils + other + expMaint + expCapex + expVacancy + expMgmt;
+    // --- RENT SCENARIO CALCULATIONS ---
     
-    // B. Cash Flow
-    const noi = monthlyRent - (totalExp - currentPI); // NOI excludes debt service
-    const cashFlowPreTax = monthlyRent - totalExp;
+    // Expenses
+    const expMaint = r_Rent * inp.maintPct;
+    const expCapex = r_Rent * inp.capexPct;
+    const expVac = r_Rent * inp.vacancyPct;
+    const expMgmt = r_Rent * inp.mgmtPct;
     
-    // Tax on Rent (Simplified: CashFlow * Rate, ignoring depreciation for simplicity as per prompt constraint to follow Excel inputs which usually simplifies this)
-    // Excel Appendix had "Rental income tax ($)" column. Often strictly (NOI - Interest) * Rate.
-    // We need Interest portion of P&I.
-    let interestPayment = 0;
-    let principalPayment = 0;
+    // Loan Calculation (Amortization)
+    let interest = 0;
+    let principal = 0;
+    let p_and_i = 0;
     
-    if (currentLoanBal > 0) {
-      interestPayment = currentLoanBal * (currentRate / 12);
-      principalPayment = currentPI - interestPayment;
-      if (principalPayment > currentLoanBal) {
-        principalPayment = currentLoanBal;
-        interestPayment = 0; // Close enough at end
-      }
+    if (r_LoanBal > 0) {
+        p_and_i = inp.monthlyPI;
+        // If loan end date passed, PI is 0
+        if (m > monthsRem) p_and_i = 0;
+        
+        interest = r_LoanBal * (inp.mortgageRate / 12);
+        principal = p_and_i - interest;
+        
+        // Check for payoff
+        if (principal > r_LoanBal) {
+            principal = r_LoanBal;
+            p_and_i = principal + interest;
+        }
+        if (r_LoanBal <= 0.1) {
+            r_LoanBal = 0;
+            p_and_i = 0;
+            interest = 0;
+            principal = 0;
+        }
     }
     
-    // Taxable Income estimate
-    const taxableIncome = Math.max(0, noi - interestPayment); 
+    const totalCashExpense = p_and_i + r_TaxIns + r_HOA + r_Utils + r_Other + expMaint + expCapex + expVac + expMgmt;
+    
+    // Tax on Rent Logic (NOI - Interest)
+    // NOI = Rent - (All Ops Excl Loan)
+    const opEx = r_TaxIns + r_HOA + r_Utils + r_Other + expMaint + expCapex + expVac + expMgmt;
+    const noi = r_Rent - opEx;
+    const taxableIncome = Math.max(0, noi - interest);
     const taxBill = taxableIncome * inp.rentalTaxRate;
     
-    const netCashFlow = cashFlowPreTax - taxBill;
-
-    // C. Invest Cash Flow
-    rentStockBal *= (1 + monthlyStockRet); // Grow existing
-    rentStockBal += netCashFlow; // Add new (or subtract if negative)
-
-    // D. Home Equity
-    // Appreciation
-    homeValue *= (1 + monthlyInflation);
+    // Net Cash Flow
+    const netCashFlow = r_Rent - totalCashExpense - taxBill;
     
-    // Amortization
-    if (currentLoanBal > 0) {
-      currentLoanBal -= principalPayment;
-      if (currentLoanBal < 0) currentLoanBal = 0;
-      // If loan ends naturally
-      if (!inp.doRefi && m > monthsRem) {
-        currentPI = 0; // Stop paying
-      } else if (inp.doRefi && m > (inp.refiYears * 12)) {
-        currentPI = 0;
-      }
-      // Hard stop if balance 0
-      if (currentLoanBal <= 0.1) currentPI = 0;
-    }
-
-    // E. Inflation Updates for NEXT month
-    rent *= (1 + monthlyInflation);
-    taxIns *= (1 + monthlyInflation);
-    hoa *= (1 + monthlyInflation);
-    utils *= (1 + monthlyInflation);
-    other *= (1 + monthlyInflation);
-
-    // Snapshot
-    const equity = homeValue - currentLoanBal;
-    // Note: To be fair comparison, Sell Net Worth assumes getting out.
-    // Rent Net Worth should theoretically account for selling costs to be liquid comparable?
-    // Usually Net Worth tracks Equity.
-    rentNetWorth.push(equity + rentStockBal);
-  }
-
-  // Generate Year Snapshots (0, 1, 2... 30)
-  const results = [];
-  
-  // Year 0
-  results.push({
-    year: 0,
-    sellNW: Math.max(0, sellProceeds + (inp.doRefi ? inp.refiPaydown : 0)), // Initial state
-    rentNW: (inp.salePrice - (inp.doRefi ? (inp.loanBal - inp.refiPaydown) : inp.loanBal)) - (inp.doRefi ? inp.refiPaydown : 0) // Complex logic for initial equity vs cash
-    // Simplified:
-    // Sell NW Year 0 = Proceeds.
-    // Rent NW Year 0 = Current Equity. 
-  });
-  // Actually, simplest is just push the month 12, 24, 36...
-  
-  for(let y=1; y<=30; y++){
-    const idx = (y*12) - 1;
-    results.push({
-      year: y,
-      sellNW: sellNetWorth[idx],
-      rentNW: rentNetWorth[idx]
+    // Update Rent Portfolio
+    // Logic: Grow previous balance, then add new cash flow
+    r_StockBal = (r_StockBal * (1 + monthlyStockRet)) + netCashFlow;
+    
+    // Update Home Equity
+    r_HomeVal = r_HomeVal * (1 + monthlyInflation);
+    r_LoanBal = r_LoanBal - principal;
+    if(r_LoanBal < 0) r_LoanBal = 0;
+    
+    // --- SELL SCENARIO CALCULATIONS ---
+    
+    // Logic: If Rent Scenario has NEGATIVE cash flow, that is money the user "saved" by selling.
+    // That "saved" money is added to the Sell Portfolio.
+    // If Rent Scenario has POSITIVE cash flow, the seller "missed out" on that income? 
+    // No, standard gap analysis:
+    // Sell Injection = Max(0, -NetCashFlowFromRent)
+    
+    const sellInjection = netCashFlow < 0 ? Math.abs(netCashFlow) : 0;
+    
+    s_StockBal = (s_StockBal * (1 + monthlyStockRet)) + sellInjection;
+    
+    // --- INFLATION FOR NEXT MONTH ---
+    r_Rent *= (1 + monthlyInflation);
+    r_TaxIns *= (1 + monthlyInflation);
+    r_HOA *= (1 + monthlyInflation);
+    r_Utils *= (1 + monthlyInflation);
+    r_Other *= (1 + monthlyInflation);
+    
+    // --- SNAPSHOT ---
+    const rentEquity = r_HomeVal - r_LoanBal;
+    const rentNW = rentEquity + r_StockBal;
+    const sellNW = s_StockBal;
+    
+    monthData.push({
+        month: m,
+        year: Math.ceil(m/12),
+        homeVal: r_HomeVal,
+        loanBal: r_LoanBal,
+        rentCF: netCashFlow,
+        sellPort: s_StockBal,
+        rentPort: r_StockBal,
+        sellNW: sellNW,
+        rentNW: rentNW
     });
   }
 
-  return results;
+  return monthData;
 }
 
-function updateUI(rows) {
-  const final = rows[rows.length - 1];
-  const diff = final.sellNW - final.rentNW;
-  const winner = diff > 0 ? "SELL" : "RENT";
-  
-  // Update Pills
-  $('recPill').innerText = `Financial Winner: ${winner}`;
-  $('recPill').style.backgroundColor = winner === 'SELL' ? 'var(--forest)' : 'var(--sage)';
-  $('recPill').style.color = '#fff';
-  
-  $('diffPill').innerText = `Difference at Year 30: ${fmtMoney(Math.abs(diff))}`;
-  $('resultTop').innerHTML = `Based on your inputs, <b>${winner}ing</b> results in higher net worth after 30 years.`;
-
-  // Chart
-  const ctx = $('nwChart').getContext('2d');
-  if (chartInstance) chartInstance.destroy();
-  
-  chartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: rows.map(r => `Year ${r.year}`),
-      datasets: [
-        {
-          label: 'Sell (Net Worth)',
-          data: rows.map(r => r.sellNW),
-          borderColor: '#2E5638', // Forest
-          backgroundColor: '#2E5638',
-          borderWidth: 2,
-          tension: 0.3,
-          pointRadius: 0
+function updateUI(data) {
+    const final = data[data.length - 1];
+    const diff = final.sellNW - final.rentNW;
+    const winner = diff > 0 ? "SELL" : "RENT";
+    
+    // Pills
+    $('recPill').innerText = `Winner: ${winner}`;
+    $('recPill').style.backgroundColor = winner === 'SELL' ? 'var(--forest)' : 'var(--sage)';
+    $('recPill').style.color = '#fff';
+    $('diffPill').innerText = `Difference Year 30: ${fmtMoney(Math.abs(diff))}`;
+    
+    // Chart
+    const ctx = $('nwChart').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+    
+    // Extract Year data (every 12th month)
+    const yearlyData = data.filter(d => d.month % 12 === 0);
+    // Ensure Year 0 is there
+    if(yearlyData[0].month !== 0) yearlyData.unshift(data[0]);
+    
+    chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: yearlyData.map(d => `Year ${d.month/12}`),
+            datasets: [
+                {
+                    label: 'Sell Net Worth',
+                    data: yearlyData.map(d => d.sellNW),
+                    borderColor: '#2E5638',
+                    backgroundColor: '#2E5638',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Rent Net Worth',
+                    data: yearlyData.map(d => d.rentNW),
+                    borderColor: '#6b7e59',
+                    backgroundColor: '#6b7e59',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    pointRadius: 0
+                }
+            ]
         },
-        {
-          label: 'Rent (Net Worth)',
-          data: rows.map(r => r.rentNW),
-          borderColor: '#6b7e59', // Sage
-          backgroundColor: '#6b7e59',
-          borderWidth: 2,
-          tension: 0.3,
-          pointRadius: 0
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: { y: { ticks: { callback: (v) => '$' + (v/1000).toFixed(0) + 'k' } } }
         }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        tooltip: {
-          callbacks: { label: (c) => ` ${c.dataset.label}: ${fmtMoney(c.raw)}` }
-        },
-        legend: { position: 'bottom' }
-      },
-      scales: {
-        y: {
-          ticks: { callback: (v) => '$' + (v/1000).toFixed(0) + 'k' }
-        }
-      }
-    }
-  });
-
-  // Table
-  const tbody = $('resultsBody');
-  tbody.innerHTML = '';
-  // Show Years 1, 5, 10, 20, 30
-  const showYears = [1, 5, 10, 20, 30];
-  
-  rows.filter(r => showYears.includes(r.year)).forEach(r => {
-    const rowDiff = r.sellNW - r.rentNW;
-    const rowWin = rowDiff > 0 ? "SELL" : "RENT";
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>Year ${r.year}</td>
-      <td style="font-weight:700; color:${rowWin === 'SELL' ? 'var(--forest)' : 'var(--sage)'}">${rowWin}</td>
-      <td>${fmtMoney(r.sellNW)}</td>
-      <td>${fmtMoney(r.rentNW)}</td>
-      <td>${fmtMoney(Math.abs(rowDiff))}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-  
-  $('resultsTable').classList.remove('hidden');
-  
-  // CSV Download
-  $('csvBtn').disabled = false;
-  $('csvBtn').onclick = () => {
-    let csvContent = "data:text/csv;charset=utf-8,Year,Sell_NetWorth,Rent_NetWorth,Difference\n";
-    rows.forEach(r => {
-      csvContent += `${r.year},${r.sellNW.toFixed(2)},${r.rentNW.toFixed(2)},${(r.sellNW - r.rentNW).toFixed(2)}\n`;
     });
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "sell_vs_rent_results.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+
+    // Main Results Table (Years 1, 5, 10, 30)
+    const tbody = $('resultsBody');
+    tbody.innerHTML = '';
+    const showYears = [1, 5, 10, 30];
+    
+    yearlyData.filter(d => showYears.includes(d.month/12)).forEach(d => {
+        const rowDiff = d.sellNW - d.rentNW;
+        const rowWin = rowDiff > 0 ? "SELL" : "RENT";
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>Year ${d.month/12}</td>
+            <td style="font-weight:700; color:${rowWin === 'SELL' ? 'var(--forest)' : 'var(--sage)'}">${rowWin}</td>
+            <td>${fmtMoney(d.sellNW)}</td>
+            <td>${fmtMoney(d.rentNW)}</td>
+            <td>${fmtMoney(Math.abs(rowDiff))}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    $('resultsTable').classList.remove('hidden');
+
+    // Appendix Table (Monthly)
+    const appBody = $('appendixBody');
+    appBody.innerHTML = '';
+    // Limit DOM nodes for performance, maybe show first 60 months and then yearly? 
+    // User requested "Monthly values for QC". We will render all, but user beware of long scroll.
+    
+    data.forEach(d => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${d.month}</td>
+            <td>${fmtDecimal(d.homeVal)}</td>
+            <td>${fmtDecimal(d.loanBal)}</td>
+            <td style="color:${d.rentCF < 0 ? 'red' : 'inherit'}">${fmtDecimal(d.rentCF)}</td>
+            <td>${fmtDecimal(d.sellPort)}</td>
+            <td>${fmtDecimal(d.rentPort)}</td>
+            <td>${fmtDecimal(d.sellNW)}</td>
+            <td>${fmtDecimal(d.rentNW)}</td>
+        `;
+        appBody.appendChild(tr);
+    });
+
+    // CSV Export
+    $('csvBtn').disabled = false;
+    $('csvBtn').onclick = () => {
+        let csv = "Month,HomeVal,LoanBal,Rent_NetCF,Sell_Port,Rent_Port,Sell_NW,Rent_NW\n";
+        data.forEach(d => {
+            csv += `${d.month},${d.homeVal.toFixed(2)},${d.loanBal.toFixed(2)},${d.rentCF.toFixed(2)},${d.sellPort.toFixed(2)},${d.rentPort.toFixed(2)},${d.sellNW.toFixed(2)},${d.rentNW.toFixed(2)}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "sell_vs_rent_model_dump.csv";
+        a.click();
+    };
 }
 
 function init() {
-  // Set default date to today and loan end date to 30 years from now
-  const today = new Date();
-  $('saleDate').valueAsDate = today;
-  
-  const future = new Date();
-  future.setFullYear(today.getFullYear() + 27); // approx match example
-  $('loanEndDate').valueAsDate = future;
-  $('yearNow').innerText = today.getFullYear();
-
-  // Refi Toggle
-  $('doRefi').addEventListener('change', (e) => {
-    if(e.target.checked) $('refiInputs').classList.remove('hidden');
-    else $('refiInputs').classList.add('hidden');
-  });
-
-  // Calculate
-  $('calcBtn').addEventListener('click', () => {
-    const inputs = getInputs();
-    const results = runModel(inputs);
-    updateUI(results);
-  });
-
-  // Reset
-  $('resetBtn').addEventListener('click', () => {
-    location.reload(); 
-  });
+    $('yearNow').innerText = new Date().getFullYear();
+    
+    $('calcBtn').addEventListener('click', () => {
+        const inputs = getInputs();
+        const results = runModel(inputs);
+        updateUI(results);
+    });
 }
 
 init();
